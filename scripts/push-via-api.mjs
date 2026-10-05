@@ -1,9 +1,10 @@
 // 通过 GitHub REST API（Git Data）逐 commit 推送 —— 用于本机无法直连
 // github.com（HTTPS 被 reset）、ghproxy 不支持 push 的环境。
 // 前提：gh auth token 有效且有 repo 权限（api.github.com 可达）。
-// 用法：node scripts/push-via-api.mjs        （增量推送 origin/main 之后的所有 commit）
+// 用法：node scripts/push-via-api.mjs        （增量：按远端最新 commit 信息对齐，只补新的）
+//       FULL=1 node scripts/push-via-api.mjs （全量重建：忽略远端历史，从根重推）
 //       GH_REPO=xxx/yyy node scripts/push-via-api.mjs
-// 注意：需要先 git fetch 过一次（或存在 origin/main 引用），否则会全量推送。
+
 import { execSync } from 'child_process';
 
 const REPO = process.env.GH_REPO || 'SicutEst/medal-planet';
@@ -32,26 +33,32 @@ const git = (cmd) => execSync(cmd, { maxBuffer: 64 * 1024 * 1024 });
 const all = git('git log --reverse --format=%H').toString().trim().split('\n');
 const localMsg = (i) => git(`git log --format=%B -1 ${all[i]}`).toString().trim();
 
+const FULL = process.env.FULL === '1';
 // 增量判定：API 生成的远端 commit SHA 与本地不同（作者/时间戳由 API 决定），
-// 因此按「远端最新一条 commit message 在本地历史中的位置」对齐
+// 因此按「远端最新一条 commit message 在本地历史中的位置」对齐；FULL=1 时全量重建
 let startIdx = 0;
-try {
-  const remoteCommits = await gh('GET', '/commits?per_page=100');
-  if (remoteCommits.length > 0) {
-    const remoteHeadMsg = remoteCommits[0].commit.message.trim();
-    for (let i = Math.min(remoteCommits.length, all.length) - 1; i >= 0; i--) {
-      if (localMsg(i) === remoteHeadMsg) { startIdx = i + 1; break; }
+if (!FULL) {
+  try {
+    const remoteCommits = await gh('GET', '/commits?per_page=100');
+    if (remoteCommits.length > 0) {
+      const remoteHeadMsg = remoteCommits[0].commit.message.trim();
+      for (let i = Math.min(remoteCommits.length, all.length) - 1; i >= 0; i--) {
+        if (localMsg(i) === remoteHeadMsg) { startIdx = i + 1; break; }
+      }
     }
-  }
-} catch { /* 远端查询失败则全量推送 */ }
+  } catch { /* 远端查询失败则全量推送 */ }
+}
 const commits = all.slice(startIdx);
 console.log(`待推送 ${commits.length} 个 commit（本地共 ${all.length} 个，远端已有 ${startIdx} 个），开始重建…`);
 
 // 空仓库无法用 Git Data API：先用 Contents API 建占位提交，之后 force 覆盖为真实历史
+// FULL=1 强制全量重建（忽略远端已有历史，从根重建）
 let refExists = false;
+let remoteHeadSha = null;
 try {
-  await gh('GET', '/git/refs/heads/main');
+  const ref = await gh('GET', '/git/refs/heads/main');
   refExists = true;
+  remoteHeadSha = ref.object.sha;
 } catch (e) {
   const headReadme = git('git show HEAD:README.md');
   await gh('PUT', '/contents/README.md', {
@@ -62,7 +69,8 @@ try {
 }
 
 const uploadedBlobs = new Map(); // 本地 blob sha -> 远端 blob sha
-let parentCommit = null;
+// 增量推送时，第一条新 commit 的父节点必须是远端当前 HEAD，否则会把历史截断
+let parentCommit = FULL ? null : (refExists ? remoteHeadSha : null);
 
 for (let i = 0; i < commits.length; i++) {
   const sha = commits[i];
