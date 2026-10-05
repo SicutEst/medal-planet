@@ -1,0 +1,337 @@
+/* 奖章星球 - 可爱卡通风格 */
+:root {
+  --primary: #FF6B9D;
+  --primary-light: #FFB6C8;
+  --primary-dark: #E91E63;
+  --secondary: #FFD93D;
+  --accent: #6BCB77;
+  --purple: #9B59B6;
+  --sky: #74B9FF;
+  --bg: #FFF5F8;
+  --card-bg: #FFFFFF;
+  --text: #2D3436;
+  --text-light: #636E72;
+  --shadow: 0 4px 20px rgba(255, 107, 157, 0.15);
+  --radius: 16px;
+  --radius-sm: 8px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 通用按钮 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+  box-shadow: 0 4px 15px rgba(255, 107, 157, 0.4);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 107, 157, 0.5);
+}
+
+.btn-secondary {
+  background: white;
+  color: var(--primary);
+  border: 2px solid var(--primary);
+}
+
+.btn-success {
+  background: linear-gradient(135deg, var(--accent), #4CAF50);
+  color: white;
+}
+
+.btn-warning {
+  background: linear-gradient(135deg, var(--secondary), #FFB800);
+  color: var(--text);
+}
+
+.btn-sm {
+  padding: 8px 16px;
+  font-size: 14px;
+}
+
+/* 卡片 */
+.card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+/* 输入框 */
+.input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 2px solid #E8E8E8;
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  transition: border-color 0.2s;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+/* 隐藏 number 输入框的上下箭头 */
+.input[type="number"]::-webkit-outer-spin-button,
+.input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* 标签 */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.tag-star { background: #FFF3E0; color: #FF9800; }
+.tag-sky { background: #E3F2FD; color: #2196F3; }
+.tag-purple { background: #F3E5F5; color: #9C27B0; }
+.tag-green { background: #E8F5E9; color: #4CAF50; }
+
+/* 页面容器 */
+.page {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 16px;
+  padding-bottom: 80px;
+}
+
+/* 头部 */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+  border-radius: 0 0 var(--radius) var(--radius);
+  margin-bottom: 20px;
+}
+
+.header h1 {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+/* 余额卡片 */
+.balance-card {
+  background: linear-gradient(135deg, var(--primary), #FF8A80);
+  border-radius: var(--radius);
+  padding: 24px;
+  color: white;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.balance-card .sticker {
+  font-size: 48px;
+  margin-bottom: 8px;
+}
+
+.balance-card .value {
+  font-size: 36px;
+  font-weight: 700;
+}
+
+.balance-card .label {
+  opacity: 0.9;
+  font-size: 14px;
+}
+
+/* 任务项 */
+.task-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: white;
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.task-item.completed {
+  opacity: 0.6;
+  background: #F5F5F5;
+}
+
+.task-item .checkbox {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid var(--primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.task-item .checkbox.checked {
+  background: var(--primary);
+  color: white;
+}
+
+.task-item .task-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.task-item .reward {
+  background: var(--primary-light);
+  color: var(--primary-dark);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* 底部导航 */
+.tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-around;
+  background: white;
+  padding: 12px 0;
+  box-shadow: 0 -2px 20px rgba(0,0,0,0.1);
+  border-radius: var(--radius) var(--radius) 0 0;
+  z-index: 100;
+}
+
+.tab-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-light);
+  text-decoration: none;
+  font-size: 12px;
+  transition: color 0.2s;
+}
+
+.tab-item.active {
+  color: var(--primary);
+}
+
+.tab-item .icon {
+  font-size: 24px;
+}
+
+/* 审批卡片 */
+.application-card {
+  background: white;
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+  border-left: 4px solid var(--primary);
+}
+
+.application-card .header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.application-card .applicant {
+  font-weight: 600;
+}
+
+.application-card .reason {
+  color: var(--text-light);
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.application-card .actions {
+  display: flex;
+  gap: 12px;
+}
+
+/* 空状态 */
+.empty-state {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-light);
+}
+
+.empty-state .icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+
+/* 动画 */
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease;
+}
+
+/* 加载状态 */
+.loading {
+  display: flex;
+  justify-content: center;
+  padding: 40px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--primary-light);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

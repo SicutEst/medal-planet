@@ -1,0 +1,580 @@
+<template>
+  <div class="page">
+    <div class="header">
+      <h1>⚙️ 设置</h1>
+    </div>
+
+    <!-- 家庭信息 -->
+    <div class="card">
+      <div class="family-info">
+        <div class="family-avatar">👨‍👩‍👧‍👦</div>
+        <div class="family-details">
+          <div class="family-name">{{ family?.name }}</div>
+          <div class="family-code">家庭码: <strong>{{ family?.family_code }}</strong></div>
+        </div>
+      </div>
+      <button class="btn btn-secondary btn-sm" @click="copyCode">
+        {{ copied ? '已复制!' : '复制' }}
+      </button>
+    </div>
+
+    <!-- 我的头像 -->
+    <div class="card">
+      <h3>🧑‍🎨 我的头像</h3>
+      <div class="avatar-section">
+        <div class="current-avatar" @click="showAvatarPicker = !showAvatarPicker">
+          <span class="avatar-emoji">{{ getMemberAvatar(authStore.member) }}</span>
+          <span class="change-hint">点击更换</span>
+        </div>
+        <div v-if="showAvatarPicker" class="avatar-picker">
+          <div v-for="avatar in avatarOptions" :key="avatar" 
+               class="avatar-option" 
+               :class="{ selected: avatar === authStore.member?.avatar }"
+               @click="selectAvatar(avatar)">
+            {{ avatar }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 邀请成员 -->
+    <div class="card invite-card">
+      <h3>📨 邀请成员加入</h3>
+      <p class="invite-desc">分享以下任一方式，让家人加入你的家庭</p>
+
+      <!-- 二维码 -->
+      <div class="qr-section">
+        <canvas ref="qrCanvas"></canvas>
+        <p class="qr-hint">扫一扫加入家庭</p>
+      </div>
+
+      <!-- 邀请链接 -->
+      <div class="invite-link-section">
+        <label>邀请链接</label>
+        <div class="link-row">
+          <input class="input link-input" :value="inviteLink" readonly>
+          <button class="btn btn-primary btn-sm" @click="copyLink">
+            {{ linkCopied ? '已复制!' : '复制链接' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 成员列表 -->
+    <div class="card">
+      <h3>👥 家庭成员</h3>
+      <div v-if="members.length > 0">
+        <div v-for="member in members" :key="member.id" class="member-item">
+          <div class="member-info">
+            <span class="member-avatar">{{ getMemberAvatar(member) }}</span>
+            <div>
+              <div class="member-name">{{ member.name }}</div>
+              <div class="member-role">{{ member.role === 'parent' ? '家长' : '孩子' }}</div>
+            </div>
+          </div>
+          <div class="member-stats">
+            <span>🎟️ {{ member.current_stickers }}</span>
+            <span>🔮 {{ member.current_balls }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 调整贴纸（家长功能） -->
+    <div v-if="authStore.isParent" class="card">
+      <h3>📝 手动调整</h3>
+      <div class="adjust-form">
+        <select v-model="adjustForm.memberId" class="input">
+          <option value="">选择成员</option>
+          <option v-for="m in members" :key="m.id" :value="m.id">{{ m.name }}</option>
+        </select>
+        <div class="adjust-amount">
+          <button @click="adjustForm.amount--" class="btn btn-sm">-</button>
+          <input v-model.number="adjustForm.amount" type="number" class="input" style="width: 80px; text-align: center">
+          <button @click="adjustForm.amount++" class="btn btn-sm">+</button>
+        </div>
+        <input v-model="adjustForm.remark" type="text" class="input" placeholder="备注（可选）">
+        <div class="adjust-buttons">
+          <button class="btn btn-success" @click="doAdjust('earn')" :disabled="!adjustForm.memberId">
+            奖励贴纸
+          </button>
+          <button class="btn btn-warning" @click="doAdjust('penalty')" :disabled="!adjustForm.memberId">
+            扣除贴纸
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 危险操作（家长功能） -->
+    <div v-if="authStore.isParent" class="card danger-zone">
+      <h3>⚠️ 危险操作</h3>
+      <p class="danger-desc">以下操作不可逆，请谨慎操作</p>
+      <div class="danger-buttons">
+        <button class="btn btn-warning" @click="resetFamilyData">
+          🧹 一键清除数据
+        </button>
+        <button class="btn btn-danger" @click="deleteFamily">
+          💀 删除家庭
+        </button>
+      </div>
+    </div>
+
+    <!-- 登出 -->
+    <button class="btn btn-secondary" style="width: 100%" @click="logout">
+      🚪 退出登录
+    </button>
+
+    <div class="app-info">
+      <p>🏅 奖章星球 v1.0</p>
+      <p>家庭奖章激励管理系统</p>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { useAuthStore } from '../stores/auth'
+import api from '../api'
+import QRCode from 'qrcode'
+
+const authStore = useAuthStore()
+const members = ref([])
+const copied = ref(false)
+const linkCopied = ref(false)
+const qrCanvas = ref(null)
+
+const family = computed(() => authStore.family)
+
+const inviteLink = computed(() => {
+  if (!family.value?.family_code) return ''
+  const origin = window.location.origin
+  return `${origin}/?code=${family.value.family_code}`
+})
+
+const generateQR = async () => {
+  if (!qrCanvas.value || !inviteLink.value) return
+  await QRCode.toCanvas(qrCanvas.value, inviteLink.value, {
+    width: 200,
+    margin: 2,
+    color: { dark: '#1a1a2e', light: '#ffffff' }
+  })
+}
+
+watch(() => family.value?.family_code, () => {
+  nextTick(() => generateQR())
+})
+
+const adjustForm = ref({
+  memberId: '',
+  amount: 0,
+  remark: ''
+})
+
+const loadMembers = async () => {
+  if (!authStore.family?.id) return
+  try {
+    const res = await api.get(`/family/${authStore.family.id}/members`)
+    if (res.success) {
+      members.value = res.members || []
+    }
+  } catch (e) {
+    console.error('获取成员失败', e)
+  }
+}
+
+const getMemberAvatar = (member) => {
+  if (member.avatar) return member.avatar
+  if (member.role === 'parent') {
+    if (member.name.includes('妈') || member.name.includes('母')) return '👩'
+    return '👨'
+  }
+  if (member.name.includes('妹') || member.name.includes('姐') || member.name.includes('女')) return '👧'
+  return '👦'
+}
+
+const avatarOptions = [
+  '👨', '👩', '👦', '👧', '👴', '👵', '👱', '👲', '🧑',
+  '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷',
+  '🦄', '🐴', '🐸', '🐵', '🐔', '🐧', '🐦', '🦉', '🦅',
+  '🐢', '🐙', '🦋', '🐝', '🐞', '🦀', '🐳', '🐬', '🦈',
+  '🌟', '🌙', '☀️', '🌈', '⭐', '🔥', '💎', '🎀', '🎈', '🎁', '🎯', '🎮'
+]
+
+const showAvatarPicker = ref(false)
+
+const selectAvatar = async (avatar) => {
+  try {
+    const res = await api.put(`/member/${authStore.member.id}`, { avatar })
+    if (res.success) {
+      authStore.member.avatar = avatar
+      localStorage.setItem('member', JSON.stringify(authStore.member))
+      await loadMembers()
+    }
+  } catch (e) {
+    console.error('更新头像失败', e)
+  }
+  showAvatarPicker.value = false
+}
+
+const copyCode = () => {
+  navigator.clipboard.writeText(family.value?.family_code)
+  copied.value = true
+  setTimeout(() => copied.value = false, 2000)
+}
+
+const copyLink = () => {
+  navigator.clipboard.writeText(inviteLink.value)
+  linkCopied.value = true
+  setTimeout(() => linkCopied.value = false, 2000)
+}
+
+const doAdjust = async (type) => {
+  if (!adjustForm.value.memberId) return
+  try {
+    await api.post('/sticker/adjust', {
+      memberId: adjustForm.value.memberId,
+      changeType: type,
+      amount: Math.abs(adjustForm.value.amount),
+      remark: adjustForm.value.remark || (type === 'earn' ? '家长奖励' : '家长扣减'),
+      operatorId: authStore.member.id
+    })
+    alert(`${type === 'earn' ? '奖励' : '扣除'}成功！`)
+    adjustForm.value = { memberId: '', amount: 0, remark: '' }
+    await loadMembers()
+    await authStore.refreshMember()
+  } catch (e) {
+    alert('操作失败')
+  }
+}
+
+const logout = () => {
+  if (confirm('确定要退出登录吗？')) {
+    authStore.logout()
+  }
+}
+
+const resetFamilyData = async () => {
+  if (!confirm('⚠️ 确定要清除家庭所有数据吗？\n\n将清除：任务、奖励、贴纸记录、完成记录等所有配置和历史数据\n保留：家庭信息、成员账号\n\n此操作不可恢复！')) {
+    return
+  }
+  const familyName = prompt(`请输入家庭名称「${family.value?.name}」以确认清除：`)
+  if (familyName !== family.value?.name) {
+    alert('家庭名称不匹配，操作已取消')
+    return
+  }
+  const password = prompt('请输入您的密码以确认：')
+  if (!password) {
+    alert('密码不能为空')
+    return
+  }
+  try {
+    const res = await api.post(`/family/${authStore.family.id}/reset`, {
+      operatorId: authStore.member.id,
+      password
+    })
+    if (res.success) {
+      alert('✅ 家庭数据已清除')
+      await authStore.refreshMember()
+      await loadMembers()
+    } else {
+      alert(res.error || '清除失败')
+    }
+  } catch (e) {
+    alert('清除失败')
+  }
+}
+
+const deleteFamily = async () => {
+  if (!confirm('💀 确定要彻底删除这个家庭吗？\n\n将删除：所有成员、任务、奖励、记录等全部数据\n删除后无法恢复，家庭码将失效！\n\n此操作不可恢复！')) {
+    return
+  }
+  const familyName = prompt(`请输入家庭名称「${family.value?.name}」以确认删除：`)
+  if (familyName !== family.value?.name) {
+    alert('家庭名称不匹配，操作已取消')
+    return
+  }
+  const password = prompt('请输入您的密码以确认：')
+  if (!password) {
+    alert('密码不能为空')
+    return
+  }
+  try {
+    const res = await api.delete(`/family/${authStore.family.id}`, {
+      data: {
+        operatorId: authStore.member.id,
+        password
+      }
+    })
+    if (res.success) {
+      alert('✅ 家庭已删除')
+      const familyId = authStore.family.id
+      authStore.removeRecentFamily(familyId)
+      authStore.logout()
+    } else {
+      alert(res.error || '删除失败')
+    }
+  } catch (e) {
+    alert('删除失败')
+  }
+}
+
+onMounted(() => {
+  loadMembers()
+  nextTick(() => generateQR())
+})
+</script>
+
+<style scoped>
+.family-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.family-avatar {
+  font-size: 48px;
+}
+
+.invite-card {
+  text-align: center;
+}
+
+.invite-desc {
+  color: var(--text-light);
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.qr-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.qr-section canvas {
+  border-radius: var(--radius-sm);
+  border: 1px solid #EEE;
+}
+
+.qr-hint {
+  font-size: 13px;
+  color: var(--text-light);
+}
+
+.invite-link-section {
+  text-align: left;
+}
+
+.invite-link-section label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.link-row {
+  display: flex;
+  gap: 8px;
+}
+
+.link-input {
+  flex: 1;
+  font-size: 12px;
+  color: var(--text-light);
+}
+
+.family-details {
+  flex: 1;
+}
+
+.family-name {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.family-code {
+  color: var(--text-light);
+  font-size: 14px;
+}
+
+.card h3 {
+  margin-bottom: 16px;
+  font-size: 16px;
+}
+
+.member-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #F5F5F5;
+}
+
+.member-item:last-child {
+  border-bottom: none;
+}
+
+.member-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.member-avatar {
+  font-size: 32px;
+}
+
+.member-name {
+  font-weight: 600;
+}
+
+.member-role {
+  font-size: 12px;
+  color: var(--text-light);
+}
+
+.member-stats {
+  display: flex;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.adjust-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.adjust-amount {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.adjust-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.adjust-buttons .btn {
+  flex: 1;
+}
+
+.app-info {
+  text-align: center;
+  padding: 40px 0;
+  color: var(--text-light);
+  font-size: 12px;
+}
+
+.app-info p:first-child {
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.danger-zone {
+  border: 2px solid #FF6B6B;
+  background: linear-gradient(135deg, #FFF5F5, #FFEBEB);
+}
+
+.danger-zone h3 {
+  color: #E53935;
+}
+
+.danger-desc {
+  color: #C62828;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.danger-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.danger-buttons .btn {
+  flex: 1;
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #FF6B6B, #E53935);
+  color: white;
+  box-shadow: 0 4px 15px rgba(229, 57, 53, 0.3);
+}
+
+.btn-danger:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(229, 57, 53, 0.4);
+}
+
+.avatar-section {
+  text-align: center;
+}
+
+.current-avatar {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  background: var(--bg);
+  border-radius: var(--radius-card);
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.current-avatar:hover {
+  transform: scale(1.05);
+}
+
+.avatar-emoji {
+  font-size: 56px;
+  line-height: 1;
+}
+
+.change-hint {
+  font-size: 12px;
+  color: var(--text-light);
+}
+
+.avatar-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 12px;
+  background: var(--bg);
+  border-radius: var(--radius-card);
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.avatar-option {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  background: white;
+  border: 2px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.avatar-option:hover {
+  border-color: var(--primary);
+  transform: scale(1.1);
+}
+
+.avatar-option.selected {
+  border-color: var(--primary);
+  background: rgba(255, 105, 180, 0.1);
+}
+</style>
