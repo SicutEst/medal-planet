@@ -33,58 +33,9 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function login(memberName, password) {
-    const res = await api.post('/family/login', { memberName, password })
-    if (res.success) {
-      member.value = res.member
-      family.value = res.family
-      localStorage.setItem('member', JSON.stringify(res.member))
-      localStorage.setItem('family', JSON.stringify(res.family))
-      return true
-    }
-    return false
-  }
-
-  // 使用身份登录
-  async function loginWithIdentity(familyName, memberName, role, password) {
-    const res = await api.post('/family/login', { familyName, memberName, password })
-    if (res.success) {
-      member.value = res.member
-      family.value = res.family
-      localStorage.setItem('member', JSON.stringify(res.member))
-      localStorage.setItem('family', JSON.stringify(res.family))
-      return true
-    }
-    return false
-  }
-
-  async function createFamily(familyName, memberName, password, role) {
-    const res = await api.post('/family/create', { familyName, memberName, password, role })
-    if (res.success) {
-      member.value = res.member
-      family.value = res.family
-      localStorage.setItem('member', JSON.stringify(res.member))
-      localStorage.setItem('family', JSON.stringify(res.family))
-      return true
-    }
-    return false
-  }
-
   // 使用身份创建家庭
   async function createFamilyWithIdentity(familyName, memberName, role, password) {
     const res = await api.post('/family/create', { familyName, memberName, password, role })
-    if (res.success) {
-      member.value = res.member
-      family.value = res.family
-      localStorage.setItem('member', JSON.stringify(res.member))
-      localStorage.setItem('family', JSON.stringify(res.family))
-      return true
-    }
-    return false
-  }
-
-  async function joinFamily(familyCode, memberName, password, role) {
-    const res = await api.post('/family/join', { familyCode, memberName, password, role })
     if (res.success) {
       member.value = res.member
       family.value = res.family
@@ -189,11 +140,7 @@ export const useAuthStore = defineStore('auth', () => {
     isChild,
     checkLogin,
     refreshMember,
-    login,
-    loginWithIdentity,
-    createFamily,
     createFamilyWithIdentity,
-    joinFamily,
     joinFamilyWithIdentity,
     logout,
     getRecentFamilies,
