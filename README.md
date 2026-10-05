@@ -92,6 +92,7 @@ medal-planet/
 │   └── Dockerfile
 │
 ├── docker-compose.yml     # Docker 编排
+├── AGENTS.md              # AI 助手/协作者开发约定
 ├── CHANGELOG.md           # 变更日志
 └── README.md
 ```
