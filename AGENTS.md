@@ -63,6 +63,9 @@ node scripts/reconcile.js
 cd web && npm run build
 cp .env.example .env && docker-compose up -d
 
+# 推送到 GitHub（本机网络无法直连 github.com 时的替代通道，走 Git Data API 增量重建）
+node scripts/push-via-api.mjs
+
 # 内存模式（仅调试页面用）
 cd server && USE_MEMORY_DB=true npm run dev
 ```

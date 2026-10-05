@@ -2,6 +2,13 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '../api'
 
+// 后端各接口返回的 family 对象键名不一致（create/join 用 code，login 用 family_code），统一归一化
+function normalizeFamily(f) {
+  if (!f) return f
+  const code = f.code || f.family_code || ''
+  return { ...f, code, family_code: code }
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const member = ref(JSON.parse(localStorage.getItem('member') || 'null'))
   const family = ref(JSON.parse(localStorage.getItem('family') || 'null'))
@@ -38,7 +45,7 @@ export const useAuthStore = defineStore('auth', () => {
     const res = await api.post('/family/create', { familyName, memberName, password, role })
     if (res.success) {
       member.value = res.member
-      family.value = res.family
+      family.value = normalizeFamily(res.family)
       localStorage.setItem('token', res.token)
       localStorage.setItem('member', JSON.stringify(res.member))
       localStorage.setItem('family', JSON.stringify(res.family))
@@ -52,7 +59,7 @@ export const useAuthStore = defineStore('auth', () => {
     const res = await api.post('/family/join', { familyCode, familyName, memberName, password, role })
     if (res.success) {
       member.value = res.member
-      family.value = res.family
+      family.value = normalizeFamily(res.family)
       localStorage.setItem('token', res.token)
       localStorage.setItem('member', JSON.stringify(res.member))
       localStorage.setItem('family', JSON.stringify(res.family))
@@ -126,7 +133,7 @@ export const useAuthStore = defineStore('auth', () => {
     const res = await api.post('/family/login-by-id', { memberId, password })
     if (res.success) {
       member.value = res.member
-      family.value = res.family
+      family.value = normalizeFamily(res.family)
       localStorage.setItem('token', res.token)
       localStorage.setItem('member', JSON.stringify(res.member))
       localStorage.setItem('family', JSON.stringify(res.family))

@@ -25,7 +25,7 @@ import {
   Reduce,
   ReduceOne,
   AddOne
-} from '@icon-park/vue'
+} from '@icon-park/vue-next'
 import { computed } from 'vue'
 
 const props = defineProps({

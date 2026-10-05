@@ -44,6 +44,15 @@ cd ../web && npm run build   # 无报错
 docker rm -f medal-planet-test-pg
 ```
 
+## 推送到 GitHub
+
+正常环境 `git push` 即可。如果所在网络无法直连 github.com（HTTPS 被重置、镜像不支持推送），
+用 API 推送通道（依赖 gh CLI 登录）：
+
+```bash
+node scripts/push-via-api.mjs   # 增量：自动识别远端已有的 commit，只补新的
+```
+
 ## 约定速查
 
 1. **每个 commit 同步 `CHANGELOG.md`**（`[未发布]` 下追加用户可读的条目）；README 受影响必须改。
