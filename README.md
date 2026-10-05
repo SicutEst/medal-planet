@@ -19,16 +19,15 @@
 git clone <your-repo> medal-planet
 cd medal-planet
 
-# 2. 配置环境变量
+# 2. 配置环境变量（必须修改数据库密码和 JWT_SECRET）
 cp .env.example .env
-# 编辑 .env，修改密码等配置
+# 编辑 .env，修改密码等配置；JWT_SECRET 留空时后端会拒绝启动
 
 # 3. 一键启动
 docker-compose up -d
 
-# 4. 访问
+# 4. 访问（前端 nginx 已同源反代 /api，无需暴露 5432/4000）
 # 前端：http://your-server-ip:3000
-# 后端API：http://your-server-ip:4000
 ```
 
 ### 方式二：本地开发

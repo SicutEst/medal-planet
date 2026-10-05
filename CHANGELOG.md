@@ -17,6 +17,15 @@
 
 ## [未发布]
 
+### Fixed
+
+- 修复 Docker 一键部署必失败的问题：补上 `web/Dockerfile` 引用但缺失的 `nginx.conf`（SPA 路由回退 + `/api` 同源反向代理）
+
+### Changed
+
+- docker-compose：后端与数据库容器时区设为 Asia/Shanghai（修复容器 UTC 导致的"今天"错位）；数据库 5432 端口不再暴露到宿主机；移除生产环境的源码目录挂载
+- `.env.example`：JWT_SECRET 不再提供默认值，生产环境留空时后端拒绝启动
+
 ### Removed
 
 - 删除 16 个 `_test_*.js` 调试脚本（开发过程残留）
