@@ -239,20 +239,20 @@ const submitSubsidy = async () => {
   try {
     const subsidyDate = new Date()
     subsidyDate.setDate(subsidyDate.getDate() - subsidyForm.value.daysAgo)
-    
+
     await api.post('/task/subsidy', {
       taskId: subsidyForm.value.taskId,
       memberId: subsidyForm.value.childId,
-      subsidyDate: subsidyDate.toISOString().split('T')[0],
-      stickerReward: subsidyForm.value.stickerReward,
-      createdBy: authStore.member.id
+      subsidyDate: localDateStr(subsidyDate),
+      stickerReward: subsidyForm.value.stickerReward
     })
-    
+
     alert('补贴成功！')
     showSubsidyModal.value = false
     subsidyForm.value = { childId: '', taskId: '', daysAgo: 1, stickerReward: 1 }
   } catch (e) {
-    alert('补贴失败')
+    const msg = e?.response?.data?.error || '补贴失败'
+    alert(msg)
   }
 }
 
@@ -303,7 +303,7 @@ const loadTodayTasks = async () => {
   loading.value = true
   try {
     const res = await api.get(`/task/family/${authStore.family.id}/today`, {
-      params: { memberId: authStore.member.id }
+      params: { memberId: authStore.member.id, date: localDateStr() }
     })
     if (res.success) {
       todayTasks.value = res.tasks || []
