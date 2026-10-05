@@ -55,6 +55,8 @@ docker run -d --name medal-planet-test-pg -e POSTGRES_USER=medal -e POSTGRES_PAS
 cd server
 DB_HOST=localhost DB_PORT=5433 DB_NAME=medal_planet DB_USER=medal DB_PASSWORD=medal123 PORT=4100 node src/index.js &
 node test/smoke.mjs
+# 涉及账务的改动，再跑对账（流水重算 vs 快照，发现不一致以非零码退出）：
+node scripts/reconcile.js
 # 测试完：docker rm -f medal-planet-test-pg
 
 # 构建 / 部署
@@ -69,7 +71,7 @@ cd server && USE_MEMORY_DB=true npm run dev
 
 1. **文档同步（硬性）**：每次功能/修复合入前，更新 `CHANGELOG.md` 的 `[未发布]` 条目（用户可读，不写实现细节）；README 受影响必须同步。发版时 CHANGELOG 分组整理、README 全面对齐。
 2. **身份与权限**：所有业务接口挂 `requireAuth`；家长专属再挂 `requireParent`；操作者身份一律取 `req.member`，**禁止从请求体读 memberId/operatorId 充当身份**；访问他人资源用 `assertMemberAccess` 或显式校验 `family_id` 一致。
-3. **账务**：任何贴纸/粉球余额变动必须经 `lib/economy.js`（`applyStickerChange` / `deductStickers`），在事务内完成；**禁止直接 UPDATE members 的余额列**；`STICKERS_PER_BALL` 只在 economy.js 定义。
+3. **账务**：任何贴纸/粉球余额变动必须经 `lib/economy.js`（`applyStickerChange` / `deductStickers`），在事务内完成；**禁止直接 UPDATE members 的余额列**；`STICKERS_PER_BALL` 只在 economy.js 定义。对账恒等式（`余额 == SUM(流水)`）必须始终成立，改账务逻辑后跑 `scripts/reconcile.js` 核验。
 4. **发放语义**：普通任务打卡只记完成，贴纸经"申请 → 家长审批"发放；坏习惯打卡即时扣；补贴即时发（家长操作）。改语义需先在 CHANGELOG 里说明。
 5. **密码**：只用 `password.js` 的 hash/verify/rehash；任何响应不得包含 `password` 字段（member 查询用显式列，不用 `SELECT *`）。
 6. **SQL**：全部参数化（`$1`）占位；建表/加列写在 `models/init.js`，必须幂等（`IF NOT EXISTS`）。

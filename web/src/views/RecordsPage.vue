@@ -251,7 +251,7 @@
             <span class="log-remark" v-else-if="log.remark">{{ log.remark }}</span>
           </div>
           <div class="log-change" :class="log.change_type">
-            {{ log.change_type === 'penalty' ? '-' : '+' }}{{ log.sticker_change }}
+            {{ formatLogChange(log) }}
           </div>
           <div class="log-balance">
             余额: {{ log.balance_after }}
@@ -306,6 +306,12 @@ const getLogTypeName = (type) => {
     subsidy: '补贴'
   }
   return map[type] || type
+}
+
+// 流水金额显示：penalty 流水记的是正数扣减额，convert 流水本身为负数
+const formatLogChange = (log) => {
+  if (log.change_type === 'penalty') return `-${Math.abs(log.sticker_change)}`
+  return `${log.sticker_change > 0 ? '+' : ''}${log.sticker_change}`
 }
 
 const getCategoryName = (category) => {

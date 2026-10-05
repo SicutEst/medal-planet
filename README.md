@@ -67,7 +67,14 @@ cd server
 DB_HOST=localhost DB_PORT=5433 DB_NAME=medal_planet DB_USER=medal DB_PASSWORD=medal123 \
 PORT=4100 node src/index.js &
 node test/smoke.mjs
+
+# 账务对账（用流水重算余额，与快照比对；修复前的历史数据可能报不一致，属预期）
+node scripts/reconcile.js
 ```
+
+## 开源协议
+
+[MIT](LICENSE)
 
 ## 项目结构
 
@@ -80,6 +87,7 @@ medal-planet/
 │   │   ├── models/        # 数据库建表与迁移
 │   │   ├── db.js          # 数据库连接（支持内存模式）
 │   │   └── index.js       # 入口
+│   ├── scripts/reconcile.js  # 余额对账脚本（流水重算 vs 快照）
 │   └── test/smoke.mjs     # 接口冒烟测试
 │
 ├── web/                   # 前端 Vue 3
@@ -92,8 +100,11 @@ medal-planet/
 │   └── Dockerfile
 │
 ├── docker-compose.yml     # Docker 编排
+├── SPEC.md                # 业务规格（货币/发放/抽卡规则与不变量）
 ├── AGENTS.md              # AI 助手/协作者开发约定
+├── CONTRIBUTING.md        # 贡献指南
 ├── CHANGELOG.md           # 变更日志
+├── LICENSE                # MIT
 └── README.md
 ```
 

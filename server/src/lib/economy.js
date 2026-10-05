@@ -38,11 +38,19 @@ export async function applyStickerChange(client, {
   if (newBalance >= STICKERS_PER_BALL) {
     const ballsEarned = Math.floor(newBalance / STICKERS_PER_BALL);
     const remainingStickers = newBalance % STICKERS_PER_BALL;
+    const convertedOut = ballsEarned * STICKERS_PER_BALL;
     const newBallBalance = (member.current_balls || 0) + ballsEarned;
 
     await client.query(
       'UPDATE members SET current_stickers = $1, current_balls = $2, total_balls = total_balls + $3 WHERE id = $4',
       [remainingStickers, newBallBalance, ballsEarned, memberId]
+    );
+
+    // 贴纸侧也必须记一条 convert 流水（负数），保证 SUM(流水) == 余额 的对账不变量
+    await client.query(
+      `INSERT INTO sticker_logs (member_id, change_type, sticker_change, balance_after, remark)
+       VALUES ($1, 'convert', $2, $3, $4)`,
+      [memberId, -convertedOut, remainingStickers, `${convertedOut}贴纸兑换${ballsEarned}个粉球`]
     );
 
     await client.query(
