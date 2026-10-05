@@ -1,13 +1,11 @@
 import express from 'express';
 import pool from '../db.js';
 import { requireAuth, requireParent } from '../lib/auth.js';
+import { applyStickerChange, deductStickers } from '../lib/economy.js';
 
 const router = express.Router();
 
 router.use(requireAuth);
-
-// 贴纸转粉球比例
-const STICKERS_PER_BALL = 160;
 
 // 获取待审批列表（家长）
 router.get('/pending/:familyId', requireParent, async (req, res) => {
@@ -66,7 +64,7 @@ router.get('/history/:memberId', async (req, res) => {
   }
 });
 
-// 创建申请（孩子提交）
+// 创建申请（孩子提交）。同一任务存在待审批申请时不重复创建。
 router.post('/', async (req, res) => {
   try {
     const applicantId = req.member.id;
@@ -87,6 +85,15 @@ router.post('/', async (req, res) => {
       const taskResult = await pool.query('SELECT family_id FROM tasks WHERE id = $1', [taskId]);
       if (taskResult.rows.length === 0 || taskResult.rows[0].family_id !== req.member.family_id) {
         return res.status(403).json({ success: false, error: '任务不存在或不属于本家庭' });
+      }
+
+      // 同一任务已有待审批申请：跳过，避免重复发放
+      const dupResult = await pool.query(
+        `SELECT id FROM applications WHERE applicant_id = $1 AND task_id = $2 AND status = 'pending'`,
+        [applicantId, taskId]
+      );
+      if (dupResult.rows.length > 0) {
+        return res.json({ success: true, skipped: true, message: '该任务已有待审批的申请' });
       }
     }
 
@@ -131,62 +138,23 @@ router.put('/:id/review', requireParent, async (req, res) => {
     }
 
     if (approved) {
-      // 获取成员当前贴纸数
-      const memberResult = await client.query(
-        'SELECT * FROM members WHERE id = $1 FOR UPDATE',
-        [application.applicant_id]
-      );
-      const member = memberResult.rows[0];
-
-      // 计算新贴纸数
-      const changeType = application.application_type === 'penalty' ? 'penalty' : 'earn';
-      const newStickers = changeType === 'penalty'
-        ? Math.max(0, member.current_stickers - application.requested_stickers)
-        : member.current_stickers + application.requested_stickers;
-
-      // 更新成员贴纸
-      await client.query(
-        `UPDATE members SET
-          current_stickers = $1,
-          total_stickers = total_stickers + $2
-         WHERE id = $3`,
-        [newStickers, changeType === 'earn' ? application.requested_stickers : 0, application.applicant_id]
-      );
-
-      // 记录贴纸日志
-      await client.query(
-        `INSERT INTO sticker_logs (member_id, task_id, application_id, change_type, sticker_change, balance_after, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [application.applicant_id, application.task_id, application.id, changeType, application.requested_stickers, newStickers, reviewerId]
-      );
-
-      // 自动转粉球（如果是获得贴纸）
-      if (changeType === 'earn' && newStickers >= STICKERS_PER_BALL) {
-        const ballsEarned = Math.floor(newStickers / STICKERS_PER_BALL);
-        const remainingStickers = newStickers % STICKERS_PER_BALL;
-
-        // 获取刚插入的日志ID
-        const logResult = await client.query(
-          'SELECT id FROM sticker_logs WHERE application_id = $1 ORDER BY created_at DESC LIMIT 1',
-          [application.id]
-        );
-
-        // 更新贴纸和粉球
-        await client.query(
-          `UPDATE members SET
-            current_stickers = $1,
-            current_balls = current_balls + $2,
-            total_balls = total_balls + $2
-           WHERE id = $3`,
-          [remainingStickers, ballsEarned, application.applicant_id]
-        );
-
-        // 记录粉球日志
-        await client.query(
-          `INSERT INTO ball_logs (member_id, change_type, ball_change, balance_after, remark, related_sticker_log_id)
-           VALUES ($1, 'convert', $2, $3, $4, $5)`,
-          [application.applicant_id, ballsEarned, member.current_balls + ballsEarned, `${ballsEarned}个粉球（${STICKERS_PER_BALL}贴纸兑换）`, logResult.rows[0].id]
-        );
+      // 统一经账务模块发放/扣除（含流水与满160自动转粉球）
+      if (application.application_type === 'penalty') {
+        await deductStickers(client, {
+          memberId: application.applicant_id,
+          amount: application.requested_stickers,
+          taskId: application.task_id,
+          createdBy: reviewerId,
+        });
+      } else {
+        await applyStickerChange(client, {
+          memberId: application.applicant_id,
+          amount: application.requested_stickers,
+          changeType: 'earn',
+          taskId: application.task_id,
+          applicationId: application.id,
+          createdBy: reviewerId,
+        });
       }
 
       // 更新申请状态

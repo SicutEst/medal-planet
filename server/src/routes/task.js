@@ -1,6 +1,7 @@
 import express from 'express';
 import pool from '../db.js';
 import { requireAuth, requireParent } from '../lib/auth.js';
+import { applyStickerChange, deductStickers } from '../lib/economy.js';
 
 const router = express.Router();
 
@@ -63,13 +64,13 @@ router.get('/family/:familyId/today', async (req, res) => {
     const dayOfWeek = target.getDay(); // 0=周日, 6=周六
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
-    // 获取所有习惯任务（含坏习惯）
+    // 获取所有习惯任务（含坏习惯），completed_count 为当日累计次数（无记录为 NULL）
     const tasksResult = await pool.query(`
       SELECT t.*,
-        (SELECT COUNT(*) FROM task_completions tc
-         WHERE tc.task_id = t.id AND tc.member_id = $2 AND tc.completed_date = $3 AND tc.is_subsidy = false) as completed_count,
-        (SELECT COUNT(*) FROM task_completions tc
-         WHERE tc.task_id = t.id AND tc.member_id = $2 AND tc.completed_date = $3 AND tc.is_subsidy = false) as is_completed_today
+        (SELECT tc.count_today FROM task_completions tc
+         WHERE tc.task_id = t.id AND tc.member_id = $2 AND tc.completed_date = $3 AND tc.is_subsidy = false LIMIT 1) as completed_count,
+        (SELECT tc.count_today FROM task_completions tc
+         WHERE tc.task_id = t.id AND tc.member_id = $2 AND tc.completed_date = $3 AND tc.is_subsidy = false LIMIT 1) as is_completed_today
       FROM tasks t
       WHERE t.family_id = $1 AND t.is_active = true AND t.category IN ('habit', 'bad_habit')
       ORDER BY t.created_at
@@ -106,10 +107,10 @@ router.get('/family/:familyId/today', async (req, res) => {
     // 同时限制 targetDate 不能早于 created_at（任务创建前的日期不显示）
     const tempTasksResult = await pool.query(`
       SELECT t.*,
-        (SELECT COUNT(*) FROM task_completions tc
-         WHERE tc.task_id = t.id AND tc.member_id = $2 AND tc.completed_date = $3 AND tc.is_subsidy = false) as completed_count,
-        (SELECT COUNT(*) FROM task_completions tc
-         WHERE tc.task_id = t.id AND tc.member_id = $2 AND tc.completed_date = $3 AND tc.is_subsidy = false) as is_completed_today
+        (SELECT tc.count_today FROM task_completions tc
+         WHERE tc.task_id = t.id AND tc.member_id = $2 AND tc.completed_date = $3 AND tc.is_subsidy = false LIMIT 1) as completed_count,
+        (SELECT tc.count_today FROM task_completions tc
+         WHERE tc.task_id = t.id AND tc.member_id = $2 AND tc.completed_date = $3 AND tc.is_subsidy = false LIMIT 1) as is_completed_today
       FROM tasks t
       WHERE t.family_id = $1 AND t.is_active = true AND t.category = 'temporary'
         AND t.created_at::date <= $3::date
@@ -356,31 +357,29 @@ router.post('/:id/complete', async (req, res) => {
       await client.query('BEGIN');
 
       // 更新或插入完成记录
+      let countToday;
       if (task.target_count > 1) {
-        // 定量任务：更新计数
+        // 定量任务：当日累计计数（达标型与累计型都累加）
         const existing = await client.query(
           'SELECT * FROM task_completions WHERE task_id = $1 AND member_id = $2 AND completed_date = $3',
           [id, memberId, targetDate]
         );
 
         if (existing.rows.length > 0) {
-          // 累计型：继续累加
-          const newCount = task.accumulative_mode === 'cumulative'
-            ? existing.rows[0].count_today + count
-            : count;
-
+          countToday = existing.rows[0].count_today + count;
           await client.query(
             'UPDATE task_completions SET count_today = $1 WHERE id = $2',
-            [newCount, existing.rows[0].id]
+            [countToday, existing.rows[0].id]
           );
         } else {
+          countToday = count;
           await client.query(
             'INSERT INTO task_completions (task_id, member_id, completed_date, count_today, is_subsidy, subsidy_date) VALUES ($1, $2, $3, $4, $5, $6)',
             [id, memberId, targetDate, count, isSubsidy, subsidyDate]
           );
         }
       } else {
-        // 普通任务：直接添加记录
+        // 普通任务：每天一次
         const existing = await client.query(
           'SELECT id FROM task_completions WHERE task_id = $1 AND member_id = $2 AND completed_date = $3',
           [id, memberId, targetDate]
@@ -391,30 +390,20 @@ router.post('/:id/complete', async (req, res) => {
           return res.status(400).json({ success: false, error: '今日已完成该任务' });
         }
 
+        countToday = 1;
         await client.query(
           'INSERT INTO task_completions (task_id, member_id, completed_date, count_today, is_subsidy, subsidy_date) VALUES ($1, $2, $3, 1, $4, $5)',
           [id, memberId, targetDate, isSubsidy, subsidyDate]
         );
       }
 
-      // 坏习惯：扣除贴纸
+      // 贴纸发放语义：打卡只记录完成，贴纸统一经「提交申请 → 家长审批」发放（方案A）。
+      // 唯一例外是坏习惯：即时扣除贴纸，不经过审批。
       let deductionResult = null;
       if (task.category === 'bad_habit') {
-        deductionResult = await deductStickers(client, memberId, task.sticker_reward, task.id, memberId);
-      } else if (task.target_count > 1 && task.accumulative_mode === 'pass_or_fail') {
-        // 达标型定量任务：达标后发放贴纸
-        const completion = await client.query(
-          'SELECT count_today FROM task_completions WHERE task_id = $1 AND member_id = $2 AND completed_date = $3',
-          [id, memberId, targetDate]
-        );
-
-        if (completion.rows[0]?.count_today >= task.target_count) {
-          // 达标，发放贴纸
-          await addStickers(client, memberId, task.sticker_reward, 'earn', task.id, isSubsidy ? subsidyDate : null, isSubsidy ? memberId : null);
-        }
-      } else if (task.target_count === 1 || (task.target_count > 1 && task.accumulative_mode === 'cumulative')) {
-        // 普通任务或累计型定量任务：直接发贴纸
-        await addStickers(client, memberId, task.sticker_reward, isSubsidy ? 'subsidy' : 'earn', task.id, isSubsidy ? subsidyDate : null, isSubsidy ? memberId : null);
+        deductionResult = await deductStickers(client, {
+          memberId, amount: task.sticker_reward, taskId: task.id, createdBy: memberId,
+        });
       }
 
       await client.query('COMMIT');
@@ -429,10 +418,11 @@ router.post('/:id/complete', async (req, res) => {
           message,
           actualDeduction: deductionResult.actualDeduction,
           requestedAmount: deductionResult.requestedAmount,
-          newBalance: deductionResult.newBalance
+          newBalance: deductionResult.newBalance,
+          countToday
         });
       } else {
-        res.json({ success: true, message: '打卡成功' });
+        res.json({ success: true, message: '打卡成功', countToday });
       }
     } catch (e) {
       await client.query('ROLLBACK');
@@ -480,8 +470,11 @@ router.post('/subsidy', requireParent, async (req, res) => {
         [taskId, memberId, subsidyDate]
       );
 
-      // 添加贴纸记录
-      await addStickers(client, memberId, stickerReward || 1, 'subsidy', taskId, subsidyDate, createdBy);
+      // 补贴贴纸即时发放（家长操作，无需审批）
+      await applyStickerChange(client, {
+        memberId, amount: stickerReward || 1, changeType: 'subsidy',
+        taskId, subsidyDate, createdBy,
+      });
 
       await client.query('COMMIT');
       res.json({ success: true, message: '补贴成功' });
@@ -499,54 +492,6 @@ router.post('/subsidy', requireParent, async (req, res) => {
     res.status(500).json({ success: false, error: '操作失败' });
   }
 });
-
-// 辅助函数：添加贴纸
-async function addStickers(client, memberId, amount, changeType, taskId, subsidyDate, createdBy) {
-  // 获取当前余额（FOR UPDATE 锁防止并发冲突）
-  const memberResult = await client.query('SELECT current_stickers FROM members WHERE id = $1 FOR UPDATE', [memberId]);
-  const currentBalance = memberResult.rows[0]?.current_stickers || 0;
-  const newBalance = currentBalance + amount;
-
-  // 更新成员贴纸（修复：current_stickers 应设为 newBalance，total_stickers 只增加正数）
-  await client.query(
-    'UPDATE members SET current_stickers = $1, total_stickers = total_stickers + $2 WHERE id = $3',
-    [newBalance, amount, memberId]
-  );
-
-  // 记录日志
-  await client.query(
-    `INSERT INTO sticker_logs (member_id, task_id, change_type, sticker_change, balance_after, subsidy_date, created_by)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-    [memberId, taskId, changeType, amount, newBalance, subsidyDate, createdBy]
-  );
-}
-
-// 辅助函数：扣除贴纸（坏习惯扣贴纸）
-async function deductStickers(client, memberId, amount, taskId, createdBy) {
-  // 获取当前余额（FOR UPDATE 锁防止并发扣减冲突）
-  const memberResult = await client.query('SELECT current_stickers FROM members WHERE id = $1 FOR UPDATE', [memberId]);
-  const currentBalance = memberResult.rows[0]?.current_stickers || 0;
-  const actualDeduction = Math.min(amount, currentBalance); // 不能扣成负数
-  const newBalance = currentBalance - actualDeduction;
-
-  // 仅当实际有扣减时才更新余额和记录日志（避免产生 sticker_change=0 的无意义日志）
-  if (actualDeduction > 0) {
-    // 更新成员贴纸（current_stickers 减少，total_stickers 不变）
-    await client.query(
-      'UPDATE members SET current_stickers = $1 WHERE id = $2',
-      [newBalance, memberId]
-    );
-
-    // 记录日志
-    await client.query(
-      `INSERT INTO sticker_logs (member_id, task_id, change_type, sticker_change, balance_after, created_by)
-       VALUES ($1, $2, 'penalty', $3, $4, $5)`,
-      [memberId, taskId, actualDeduction, newBalance, createdBy]
-    );
-  }
-
-  return { actualDeduction, newBalance, requestedAmount: amount };
-}
 
 // 获取本周开始日期
 function getWeekStart(date) {

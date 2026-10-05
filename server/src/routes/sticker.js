@@ -1,13 +1,11 @@
 import express from 'express';
 import pool from '../db.js';
 import { requireAuth, requireParent } from '../lib/auth.js';
+import { applyStickerChange, deductStickers } from '../lib/economy.js';
 
 const router = express.Router();
 
 router.use(requireAuth);
-
-// 贴纸转粉球比例
-const STICKERS_PER_BALL = 160;
 
 // 获取贴纸记录（本人或同家庭家长）
 router.get('/logs/:memberId', async (req, res) => {
@@ -63,6 +61,9 @@ router.post('/adjust', requireParent, async (req, res) => {
     if (!Number.isInteger(amount) || amount === 0 || Math.abs(amount) > 10000) {
       return res.status(400).json({ success: false, error: '数量需为 1-10000 的非零整数' });
     }
+    if (changeType !== 'adjust' && amount < 0) {
+      return res.status(400).json({ success: false, error: '该操作类型的数量必须为正数' });
+    }
 
     // 目标成员必须属于本家庭
     const targetResult = await pool.query('SELECT family_id FROM members WHERE id = $1', [memberId]);
@@ -72,68 +73,25 @@ router.post('/adjust', requireParent, async (req, res) => {
 
     await client.query('BEGIN');
 
-    // 获取成员
+    // 目标成员必须存在
     const memberResult = await client.query(
-      'SELECT * FROM members WHERE id = $1 FOR UPDATE',
+      'SELECT id FROM members WHERE id = $1 FOR UPDATE',
       [memberId]
     );
-    const member = memberResult.rows[0];
-
-    if (!member) {
+    if (memberResult.rows.length === 0) {
       throw new Error('成员不存在');
     }
 
-    // 计算新贴纸数
-    let newStickers;
-    if (changeType === 'earn') {
-      newStickers = member.current_stickers + amount;
-    } else if (changeType === 'penalty') {
-      newStickers = Math.max(0, member.current_stickers - amount);
+    // 统一经账务模块变动（含流水与满160自动转粉球）
+    let resultInfo;
+    if (changeType === 'penalty') {
+      resultInfo = await deductStickers(client, {
+        memberId, amount, taskId: null, remark, createdBy: operatorId,
+      });
     } else {
-      newStickers = member.current_stickers + amount; // adjust可以是负数
-    }
-
-    // 更新成员
-    await client.query(
-      `UPDATE members SET
-        current_stickers = $1,
-        total_stickers = total_stickers + $2
-       WHERE id = $3`,
-      [newStickers, changeType === 'earn' ? amount : 0, memberId]
-    );
-
-    // 记录日志
-    await client.query(
-      `INSERT INTO sticker_logs (member_id, change_type, sticker_change, balance_after, remark, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [memberId, changeType, amount, newStickers, remark, operatorId]
-    );
-
-    // 自动转粉球
-    if (changeType === 'earn' && newStickers >= STICKERS_PER_BALL) {
-      const ballsEarned = Math.floor(newStickers / STICKERS_PER_BALL);
-      const remainingStickers = newStickers % STICKERS_PER_BALL;
-
-      await client.query(
-        `UPDATE members SET
-          current_stickers = $1,
-          current_balls = current_balls + $2,
-          total_balls = total_balls + $2
-         WHERE id = $3`,
-        [remainingStickers, ballsEarned, memberId]
-      );
-
-      // 获取刚插入的日志
-      const logResult = await client.query(
-        'SELECT id FROM sticker_logs WHERE member_id = $1 ORDER BY created_at DESC LIMIT 1',
-        [memberId]
-      );
-
-      await client.query(
-        `INSERT INTO ball_logs (member_id, change_type, ball_change, balance_after, remark, related_sticker_log_id)
-         VALUES ($1, 'convert', $2, $3, $4, $5)`,
-        [memberId, ballsEarned, member.current_balls + ballsEarned, `${ballsEarned}个粉球（${STICKERS_PER_BALL}贴纸兑换）`, logResult.rows[0].id]
-      );
+      resultInfo = await applyStickerChange(client, {
+        memberId, amount, changeType, taskId: null, remark, createdBy: operatorId,
+      });
     }
 
     await client.query('COMMIT');

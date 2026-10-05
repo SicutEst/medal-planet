@@ -51,22 +51,25 @@
           :key="task.id"
           class="task-item"
           :class="{
-            completed: task.is_completed_today > 0,
+            completed: isTaskDone(task) && task.category !== 'bad_habit',
             'bad-habit': task.category === 'bad_habit',
             'todo-task': task.category === 'temporary'
           }"
         >
           <div class="checkbox" :class="{
-            checked: task.is_completed_today > 0,
+            checked: isTaskDone(task),
             'bad-habit-check': task.category === 'bad_habit',
             'todo-check': task.category === 'temporary'
           }" @click="toggleTask(task)">
-            <span v-if="task.is_completed_today > 0">{{ task.category === 'bad_habit' ? '✗' : '✓' }}</span>
+            <span v-if="isTaskDone(task)">{{ task.category === 'bad_habit' ? '✗' : '✓' }}</span>
           </div>
           <div class="task-name">
             {{ task.name }}
             <span v-if="task.category === 'bad_habit'" class="tag tag-warn">坏习惯</span>
             <span v-else-if="task.category === 'temporary'" class="tag tag-todo">待办</span>
+            <span v-if="task.target_count > 1" class="tag tag-gold">
+              {{ task.accumulative_mode === 'cumulative' ? '累计' : '达标' }} {{ task.count_today || 0 }}/{{ task.target_count }}
+            </span>
           </div>
           <div class="reward" :class="{ penalty: task.category === 'bad_habit' }">
             {{ task.category === 'bad_habit' ? '-' : '+' }}{{ task.sticker_reward }} 🎟️
@@ -200,6 +203,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
+import { localDateStr } from '../utils/date'
 import api from '../api'
 
 const authStore = useAuthStore()
@@ -208,7 +212,6 @@ const todayTasks = ref([])
 const pendingApps = ref([])
 const loading = ref(false)
 const submitting = ref(false)
-const submittedToday = ref(false)
 
 // 补贴相关
 const showSubsidyModal = ref(false)
@@ -283,8 +286,17 @@ const todayStr = computed(() => {
 })
 
 const hasCompletedTask = computed(() => {
-  return todayTasks.value.some(t => t.is_completed_today > 0 && t.category !== 'bad_habit')
+  return todayTasks.value.some(t => (t.count_today || 0) > 0 && t.category !== 'bad_habit')
 })
+
+// 任务今日是否算"完成"：达标型需达到目标次数，其余有记录即算
+const isTaskDone = (task) => {
+  const count = task.count_today || 0
+  if (task.target_count > 1 && task.accumulative_mode === 'pass_or_fail') {
+    return count >= task.target_count
+  }
+  return count > 0
+}
 
 const loadTodayTasks = async () => {
   if (!authStore.member?.id || !authStore.family?.id) return
@@ -316,7 +328,12 @@ const loadPendingApps = async () => {
 }
 
 const toggleTask = async (task) => {
-  if (task.is_completed_today > 0) return
+  const count = task.count_today || 0
+  // 已完成/已达标的任务不可再打卡（累计型不设上限）
+  if (task.category !== 'bad_habit') {
+    if (task.target_count === 1 && count >= 1) return
+    if (task.target_count > 1 && task.accumulative_mode === 'pass_or_fail' && count >= task.target_count) return
+  }
 
   // 坏习惯需要确认
   if (task.category === 'bad_habit') {
@@ -327,9 +344,11 @@ const toggleTask = async (task) => {
 
   try {
     const res = await api.post(`/task/${task.id}/complete`, {
-      memberId: authStore.member.id
+      date: localDateStr()
     })
-    task.is_completed_today = 1
+    // 用服务端返回的累计次数更新本地状态
+    task.count_today = res?.countToday ?? (count + 1)
+    task.is_completed_today = task.count_today
 
     // 坏习惯扣贴纸后刷新余额，并向用户反馈实际扣除情况（余额不足时实际扣除可能少于请求）
     if (task.category === 'bad_habit') {
@@ -343,21 +362,46 @@ const toggleTask = async (task) => {
   }
 }
 
+// 当日"已提交"标记按成员+日期存储，刷新页面不会重复提交
+const submittedFlagKey = () => `submitted_${authStore.member?.id}_${localDateStr()}`
+const submittedToday = ref(localStorage.getItem(submittedFlagKey()) === '1')
+
+// 提交资格：达标型需达到目标次数；累计型按次数折算；单次任务有记录即可
+const isSubmittable = (task) => {
+  const count = task.count_today || 0
+  if (task.target_count > 1 && task.accumulative_mode === 'pass_or_fail') {
+    return count >= task.target_count
+  }
+  return count > 0
+}
+
 const submitDailyTasks = async () => {
   submitting.value = true
   try {
-    // 找出已完成的好习惯任务（坏习惯不走审批，直接扣贴纸）
-    const completedTasks = todayTasks.value.filter(t => t.is_completed_today > 0 && t.category !== 'bad_habit')
-    for (const task of completedTasks) {
-      await api.post('/application', {
+    // 找出符合提交条件的任务（坏习惯不贴纸，不走审批）
+    const eligibleTasks = todayTasks.value.filter(t => t.category !== 'bad_habit' && isSubmittable(t))
+    let skipped = 0
+    for (const task of eligibleTasks) {
+      const count = task.count_today || 0
+      const requested = task.accumulative_mode === 'cumulative' && task.target_count > 1
+        ? task.sticker_reward * count
+        : task.sticker_reward
+      const res = await api.post('/application', {
         applicantId: authStore.member.id,
         taskId: task.id,
         applicationType: 'earn',
-        requestedStickers: task.sticker_reward,
-        reason: `完成「${task.name}」`
+        requestedStickers: requested,
+        reason: `完成「${task.name}」${count > 1 ? ` ×${count}` : ''}`
       })
+      if (res?.skipped) skipped++
     }
     submittedToday.value = true
+    localStorage.setItem(submittedFlagKey(), '1')
+    if (skipped > 0) {
+      alert(`已提交，其中 ${skipped} 个任务此前已有待审批申请，未重复提交`)
+    } else {
+      alert('已提交，等待家长审批')
+    }
     await authStore.refreshMember()
     await loadPendingApps()
   } catch (e) {

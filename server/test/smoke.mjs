@@ -82,7 +82,7 @@ let taskId, badTaskId, quotaTaskId;
   check('孩子可查看任务列表', list.data?.success === true && list.data.tasks.length >= 3);
 }
 
-// ---- 打卡 ----
+// ---- 打卡（方案A：打卡只记完成不发贴纸）----
 {
   const r = await api('POST', `/task/${taskId}/complete`, { token: childToken, body: {} });
   check('孩子打卡成功', r.data?.success === true);
@@ -90,19 +90,18 @@ let taskId, badTaskId, quotaTaskId;
   check('重复打卡被拒 400', dup.status === 400);
 
   const bad = await api('POST', `/task/${badTaskId}/complete`, { token: childToken, body: {} });
-  // 阶段2语义：刷牙打卡已发5贴纸，坏习惯扣2
-  check('坏习惯打卡成功（实际扣2）', bad.data?.success === true && bad.data.actualDeduction === 2, '实际=' + JSON.stringify(bad.data));
+  check('坏习惯打卡成功（余额0实际扣0）', bad.data?.success === true && bad.data.actualDeduction === 0, '实际=' + JSON.stringify(bad.data));
 
-  // 达标型 3 次
+  // 达标型 3 次打卡
   for (let i = 0; i < 3; i++) {
     await api('POST', `/task/${quotaTaskId}/complete`, { token: childToken, body: {} });
   }
   const today = await api('GET', `/task/family/${ids.familyId}/today`, { token: childToken });
   const qt = today.data.tasks.find(t => t.id === quotaTaskId);
-  check('今日任务列表返回完成次数', qt && qt.completed_count >= 1, JSON.stringify(qt?.completed_count));
+  check('达标型任务累计 3/3', qt && (qt.completed_count || 0) === 3, '实际=' + JSON.stringify(qt?.completed_count));
 }
 
-// ---- 申请 + 审批（阶段2语义：打卡即发贴纸，此处验证审批链路可用）----
+// ---- 申请 + 审批（打卡不发贴纸，审批后发放）----
 {
   const r = await api('POST', '/application', { token: childToken, body: { taskId, applicationType: 'earn', requestedStickers: 5, reason: 'test' } });
   check('孩子创建申请', r.data?.success === true);
@@ -113,17 +112,25 @@ let taskId, badTaskId, quotaTaskId;
 
   const review = await api('PUT', `/application/${appId}/review`, { token: ids.token, body: { approved: true } });
   check('家长审批通过', review.data?.success === true);
-  // 阶段2语义：5(打卡即发) - 2(坏习惯) + 5(审批) = 8；达标型未发（count覆盖bug，阶段3修复）
-  check('审批后贴纸到账（5-2+5=8）', review.data.member.current_stickers === 8, '实际=' + review.data.member?.current_stickers);
+  check('审批后贴纸到账 5', review.data.member.current_stickers === 5, '实际=' + review.data.member?.current_stickers);
 
   const again = await api('PUT', `/application/${appId}/review`, { token: ids.token, body: { approved: true } });
   check('重复审批返回 409', again.status === 409);
+
+  // 防重复：同一任务 pending 中不可重复申请
+  const dupApp = await api('POST', '/application', { token: childToken, body: { taskId, applicationType: 'earn', requestedStickers: 5 } });
+  check('已批准的任务可再次申请', dupApp.data?.success === true && !dupApp.data.skipped);
+  const dupApp2 = await api('POST', '/application', { token: childToken, body: { taskId, applicationType: 'earn', requestedStickers: 5 } });
+  check('pending 中重复申请被跳过', dupApp2.data?.success === true && dupApp2.data.skipped === true);
+  // 拒绝清理这条 pending，避免影响后续用例
+  await api('PUT', `/application/${dupApp.data.application.id}/review`, { token: ids.token, body: { approved: false } });
 }
 
-// ---- 调分（家长）----
+// ---- 调分（家长）+ 满160自动转粉球 ----
 {
-  const r = await api('POST', '/sticker/adjust', { token: ids.token, body: { memberId: childId, changeType: 'earn', amount: 5, remark: '奖励' } });
+  const r = await api('POST', '/sticker/adjust', { token: ids.token, body: { memberId: childId, changeType: 'earn', amount: 160, remark: '批量奖励' } });
   check('家长调分成功', r.data?.success === true);
+  check('满160自动转粉球（5+160=165→余5贴纸+1粉球）', r.data.member.current_stickers === 5 && r.data.member.current_balls === 1, '实际=' + JSON.stringify({ s: r.data.member?.current_stickers, b: r.data.member?.current_balls }));
   const childAdjust = await api('POST', '/sticker/adjust', { token: childToken, body: { memberId: childId, changeType: 'earn', amount: 100 } });
   check('孩子调分被拒 403', childAdjust.status === 403);
 }
@@ -144,7 +151,7 @@ let taskId, badTaskId, quotaTaskId;
 
 // ---- 奖励与兑换 ----
 {
-  const r = await api('POST', '/reward', { token: ids.token, body: { name: '冰淇淋', requiredBalls: 1, stock: 5 } });
+  const r = await api('POST', '/reward', { token: ids.token, body: { name: '冰淇淋', requiredBalls: 2, stock: 5 } });
   check('家长创建奖励', r.data?.success === true);
   const rewardId = r.data.reward.id;
 
