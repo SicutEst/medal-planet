@@ -144,11 +144,11 @@ router.post('/draw', async (req, res) => {
         continue;
       }
 
-      // 记录抽卡记录
+      // 记录抽卡记录（每抽一条，total_pulls 恒为 1）
       const recordResult = await client.query(
         `INSERT INTO gacha_records (member_id, reward_id, total_pulls, is_guaranteed)
-         VALUES ($1, $2, $3, $4) RETURNING id`,
-        [memberId, reward.id, count, isGuaranteed]
+         VALUES ($1, $2, 1, $3) RETURNING id`,
+        [memberId, reward.id, isGuaranteed]
       );
       const gachaRecordId = recordResult.rows[0].id;
 

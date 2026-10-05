@@ -211,7 +211,7 @@ router.get('/monthly-report/:memberId', async (req, res) => {
       },
       ball: {
         converted: parseInt(ballSummary.rows[0].converted) || 0,
-        used: parseInt(ballSummary.rows[0].used) || 0,
+        used: Math.abs(parseInt(ballSummary.rows[0].used) || 0),
         logCount: parseInt(ballSummary.rows[0].log_count) || 0
       },
       tasks: {
