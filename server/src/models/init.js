@@ -1,4 +1,5 @@
 import pool from '../db.js';
+import crypto from 'crypto';
 
 const useMemory = process.env.USE_MEMORY_DB === 'true';
 
@@ -208,6 +209,11 @@ export async function initDatabase() {
       ALTER TABLE members ADD COLUMN IF NOT EXISTS avatar VARCHAR(10) DEFAULT NULL;
     `);
 
+    // 密码列扩容以容纳 scrypt 哈希（约180字符）
+    await client.query(`
+      ALTER TABLE members ALTER COLUMN password TYPE VARCHAR(200);
+    `);
+
     // 宠物/奖励收藏表（抽卡获得的奖励会进入收藏）
     await client.query(`
       CREATE TABLE IF NOT EXISTS pet_collections (
@@ -235,12 +241,12 @@ export async function initDatabase() {
   }
 }
 
-// 生成唯一家庭码（7位字母+数字，去除易混淆字符）
+// 生成唯一家庭码（7位字母+数字，去除易混淆字符，加密安全随机）
 export function generateFamilyCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
   for (let i = 0; i < 7; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
+    code += chars.charAt(crypto.randomInt(chars.length));
   }
   return code;
 }

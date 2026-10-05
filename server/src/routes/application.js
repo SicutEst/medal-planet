@@ -1,15 +1,18 @@
 import express from 'express';
 import pool from '../db.js';
+import { requireAuth, requireParent } from '../lib/auth.js';
 
 const router = express.Router();
+
+router.use(requireAuth);
 
 // 贴纸转粉球比例
 const STICKERS_PER_BALL = 160;
 
-// 获取待审批列表
-router.get('/pending/:familyId', async (req, res) => {
+// 获取待审批列表（家长）
+router.get('/pending/:familyId', requireParent, async (req, res) => {
   try {
-    const { familyId } = req.params;
+    const familyId = req.member.family_id;
     const result = await pool.query(
       `SELECT a.*,
         m.name as applicant_name, m.role as applicant_role, m.avatar as applicant_avatar,
@@ -28,11 +31,23 @@ router.get('/pending/:familyId', async (req, res) => {
   }
 });
 
-// 获取申请历史
+// 获取申请历史（本人或同家庭家长）
 router.get('/history/:memberId', async (req, res) => {
   try {
     const { memberId } = req.params;
     const { limit } = req.query;
+
+    const targetResult = await pool.query('SELECT family_id FROM members WHERE id = $1', [memberId]);
+    if (targetResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: '成员不存在' });
+    }
+    if (targetResult.rows[0].family_id !== req.member.family_id) {
+      return res.status(403).json({ success: false, error: '无权查看该成员的申请' });
+    }
+    if (memberId !== req.member.id && req.member.role !== 'parent') {
+      return res.status(403).json({ success: false, error: '无权查看该成员的申请' });
+    }
+
     const result = await pool.query(
       `SELECT a.*, t.name as task_name,
         r.name as reviewer_name
@@ -54,12 +69,31 @@ router.get('/history/:memberId', async (req, res) => {
 // 创建申请（孩子提交）
 router.post('/', async (req, res) => {
   try {
-    const { applicantId, taskId, applicationType, requestedStickers, reason } = req.body;
+    const applicantId = req.member.id;
+    const { taskId, applicationType, requestedStickers, reason } = req.body;
+
+    if (!['earn', 'penalty', 'custom'].includes(applicationType)) {
+      return res.status(400).json({ success: false, error: '申请类型无效' });
+    }
+    if (!Number.isInteger(requestedStickers) || requestedStickers < 1 || requestedStickers > 10000) {
+      return res.status(400).json({ success: false, error: '贴纸数量需为 1-10000 的整数' });
+    }
+    if (reason && (typeof reason !== 'string' || reason.length > 200)) {
+      return res.status(400).json({ success: false, error: '理由需为 200 字以内的文本' });
+    }
+
+    // 关联任务时校验任务属于本家庭
+    if (taskId) {
+      const taskResult = await pool.query('SELECT family_id FROM tasks WHERE id = $1', [taskId]);
+      if (taskResult.rows.length === 0 || taskResult.rows[0].family_id !== req.member.family_id) {
+        return res.status(403).json({ success: false, error: '任务不存在或不属于本家庭' });
+      }
+    }
 
     const result = await pool.query(
       `INSERT INTO applications (applicant_id, task_id, application_type, requested_stickers, reason)
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [applicantId, taskId, applicationType, requestedStickers, reason]
+      [applicantId, taskId || null, applicationType, requestedStickers, reason || null]
     );
 
     res.json({ success: true, application: result.rows[0] });
@@ -69,12 +103,13 @@ router.post('/', async (req, res) => {
   }
 });
 
-// 审批申请
-router.put('/:id/review', async (req, res) => {
+// 审批申请（家长）
+router.put('/:id/review', requireParent, async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { reviewerId, approved, rejectReason } = req.body;
+    const reviewerId = req.member.id;
+    const { approved, rejectReason } = req.body;
 
     await client.query('BEGIN');
 
@@ -84,6 +119,12 @@ router.put('/:id/review', async (req, res) => {
       throw new Error('申请不存在');
     }
     const application = appResult.rows[0];
+
+    // 申请必须属于本家庭的孩子
+    const applicantResult = await client.query('SELECT family_id FROM members WHERE id = $1', [application.applicant_id]);
+    if (applicantResult.rows.length === 0 || applicantResult.rows[0].family_id !== req.member.family_id) {
+      throw new Error('无权审批该申请');
+    }
 
     if (application.status !== 'pending') {
       throw new Error('该申请已处理');
@@ -165,7 +206,7 @@ router.put('/:id/review', async (req, res) => {
 
     // 返回更新后的成员信息
     const updatedMember = await pool.query(
-      'SELECT * FROM members WHERE id = $1',
+      'SELECT id, name, role, current_stickers, current_balls, total_stickers, total_balls, avatar FROM members WHERE id = $1',
       [application.applicant_id]
     );
 
@@ -177,7 +218,9 @@ router.put('/:id/review', async (req, res) => {
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('审批失败:', error);
-    res.status(500).json({ success: false, error: error.message || '审批失败' });
+    const msg = error.message || '审批失败';
+    const status = msg.includes('不存在') ? 404 : msg.includes('已处理') || msg.includes('无权') ? 409 : 500;
+    res.status(status).json({ success: false, error: msg });
   } finally {
     client.release();
   }

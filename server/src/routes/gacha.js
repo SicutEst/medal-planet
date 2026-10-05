@@ -1,7 +1,10 @@
 import express from 'express';
 import pool from '../db.js';
+import { requireAuth } from '../lib/auth.js';
 
 const router = express.Router();
+
+router.use(requireAuth);
 
 // 抽卡配置
 const GACHA_CONFIG = {
@@ -69,7 +72,8 @@ async function getGachaPool(client, familyId) {
 router.post('/draw', async (req, res) => {
   const client = await pool.connect();
   try {
-    const { memberId, count = 1 } = req.body;
+    const memberId = req.member.id;
+    const { count = 1 } = req.body;
 
     if (![1, 10].includes(count)) {
       return res.status(400).json({ success: false, error: '抽卡次数只能是1或10' });
@@ -212,6 +216,11 @@ router.get('/records/:memberId', async (req, res) => {
   try {
     const { memberId } = req.params;
     const { limit = 50 } = req.query;
+
+    if (memberId !== req.member.id && req.member.role !== 'parent') {
+      return res.status(403).json({ success: false, error: '无权查看该成员的记录' });
+    }
+
     const result = await pool.query(
       `SELECT gr.*, r.name as reward_name, r.icon as reward_icon, r.tier as reward_tier
        FROM gacha_records gr
@@ -231,6 +240,11 @@ router.get('/records/:memberId', async (req, res) => {
 router.get('/pets/:memberId', async (req, res) => {
   try {
     const { memberId } = req.params;
+
+    if (memberId !== req.member.id && req.member.role !== 'parent') {
+      return res.status(403).json({ success: false, error: '无权查看该成员的收藏' });
+    }
+
     const result = await pool.query(
       `SELECT * FROM pet_collections
        WHERE member_id = $1
@@ -256,6 +270,11 @@ router.get('/pets/:memberId', async (req, res) => {
 router.get('/pity/:memberId', async (req, res) => {
   try {
     const { memberId } = req.params;
+
+    if (memberId !== req.member.id && req.member.role !== 'parent') {
+      return res.status(403).json({ success: false, error: '无权查看该成员的保底进度' });
+    }
+
     const result = await pool.query(
       'SELECT gacha_pity_counter FROM members WHERE id = $1',
       [memberId]

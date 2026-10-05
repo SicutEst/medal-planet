@@ -1,7 +1,10 @@
 import express from 'express';
 import pool from '../db.js';
+import { requireAuth } from '../lib/auth.js';
 
 const router = express.Router();
+
+router.use(requireAuth);
 
 // 辅助：获取本地日期字符串（避免UTC偏移问题）
 function getLocalDateString(date) {
@@ -12,11 +15,21 @@ function getLocalDateString(date) {
   return `${year}-${month}-${day}`;
 }
 
+// 校验目标成员是本人或同家庭成员（家长可查孩子）
+function assertAccess(req, memberId) {
+  return memberId === req.member.id || req.member.role === 'parent';
+}
+
 // 热力图数据：过去 N 天每日打卡次数和获得贴纸数
 router.get('/heatmap/:memberId', async (req, res) => {
   try {
     const { memberId } = req.params;
     const { days = 90 } = req.query;
+
+    if (!assertAccess(req, memberId)) {
+      return res.status(403).json({ success: false, error: '无权查看该成员的数据' });
+    }
+
     const numDays = Math.min(Math.max(parseInt(days) || 90, 7), 365);
 
     const result = await pool.query(`
@@ -81,6 +94,10 @@ router.get('/monthly-report/:memberId', async (req, res) => {
   try {
     const { memberId } = req.params;
     const { year, month } = req.query;
+
+    if (!assertAccess(req, memberId)) {
+      return res.status(403).json({ success: false, error: '无权查看该成员的数据' });
+    }
 
     // 默认当月
     const now = new Date();
@@ -228,6 +245,11 @@ router.get('/trend/:memberId', async (req, res) => {
   try {
     const { memberId } = req.params;
     const { months = 6 } = req.query;
+
+    if (!assertAccess(req, memberId)) {
+      return res.status(403).json({ success: false, error: '无权查看该成员的数据' });
+    }
+
     const numMonths = Math.min(Math.max(parseInt(months) || 6, 1), 24);
 
     const result = await pool.query(`

@@ -1,11 +1,11 @@
 import pg from 'pg';
 import memPool, { seedDatabase } from './db-memory.js';
 
-const useMemory = process.env.USE_MEMORY_DB === 'true';
+export const isMemoryDb = process.env.USE_MEMORY_DB === 'true';
 
 let pool;
 
-if (useMemory) {
+if (isMemoryDb) {
   pool = memPool;
   seedDatabase();
 } else {

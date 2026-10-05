@@ -1,12 +1,15 @@
 import express from 'express';
 import pool from '../db.js';
+import { requireAuth, requireParent } from '../lib/auth.js';
 
 const router = express.Router();
+
+router.use(requireAuth);
 
 // 获取家庭的所有奖励
 router.get('/family/:familyId', async (req, res) => {
   try {
-    const { familyId } = req.params;
+    const familyId = req.member.family_id;
     const result = await pool.query(
       `SELECT * FROM rewards WHERE family_id = $1 ORDER BY sort_order, created_at DESC`,
       [familyId]
@@ -18,10 +21,18 @@ router.get('/family/:familyId', async (req, res) => {
   }
 });
 
-// 获取兑换记录
+// 获取兑换记录（本人或同家庭家长）
 router.get('/exchanges/:memberId', async (req, res) => {
   try {
     const { memberId } = req.params;
+    if (memberId !== req.member.id && req.member.role !== 'parent') {
+      return res.status(403).json({ success: false, error: '无权查看该成员的兑换记录' });
+    }
+    const targetResult = await pool.query('SELECT family_id FROM members WHERE id = $1', [memberId]);
+    if (targetResult.rows.length === 0 || targetResult.rows[0].family_id !== req.member.family_id) {
+      return res.status(403).json({ success: false, error: '无权查看该成员的兑换记录' });
+    }
+
     const result = await pool.query(
       `SELECT re.*, r.name as reward_name, r.icon as reward_icon, r.tier as reward_tier
        FROM reward_exchanges re
@@ -38,9 +49,9 @@ router.get('/exchanges/:memberId', async (req, res) => {
 });
 
 // 获取家庭所有兑换记录（家长查看并确认领取）
-router.get('/family-exchanges/:familyId', async (req, res) => {
+router.get('/family-exchanges/:familyId', requireParent, async (req, res) => {
   try {
-    const { familyId } = req.params;
+    const familyId = req.member.family_id;
     const result = await pool.query(
       `SELECT re.*, r.name as reward_name, r.icon as reward_icon, r.tier as reward_tier,
               m.name as member_name
@@ -59,19 +70,24 @@ router.get('/family-exchanges/:familyId', async (req, res) => {
 });
 
 // 创建奖励（家长操作）
-router.post('/', async (req, res) => {
+router.post('/', requireParent, async (req, res) => {
   try {
+    const familyId = req.member.family_id;
     const {
-      familyId, name, description, tier, requiredBalls,
+      name, description, tier, requiredBalls,
       isGachaPool, isExchangeable, stock, icon
     } = req.body;
+
+    if (!name || typeof name !== 'string' || name.trim().length === 0 || name.length > 100) {
+      return res.status(400).json({ success: false, error: '奖励名称需为 1-100 个字符' });
+    }
 
     const result = await pool.query(
       `INSERT INTO rewards (family_id, name, description, tier, required_balls, is_gacha_pool, is_exchangeable, stock, icon)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
       [
-        familyId, name, description || '', tier || '普通',
+        familyId, name.trim(), description || '', tier || '普通',
         requiredBalls || 10, isGachaPool || false, isExchangeable !== false,
         stock !== undefined ? stock : -1, icon || '🎁'
       ]
@@ -85,9 +101,18 @@ router.post('/', async (req, res) => {
 });
 
 // 更新奖励
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireParent, async (req, res) => {
   try {
     const { id } = req.params;
+
+    const checkResult = await pool.query('SELECT family_id FROM rewards WHERE id = $1', [id]);
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: '奖励不存在' });
+    }
+    if (checkResult.rows[0].family_id !== req.member.family_id) {
+      return res.status(403).json({ success: false, error: '无权操作该奖励' });
+    }
+
     const { name, description, tier, requiredBalls, isGachaPool, isExchangeable, stock, icon } = req.body;
 
     const result = await pool.query(
@@ -104,10 +129,6 @@ router.put('/:id', async (req, res) => {
       [name, description, tier, requiredBalls, isGachaPool, isExchangeable, stock, icon, id]
     );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, error: '奖励不存在' });
-    }
-
     res.json({ success: true, reward: result.rows[0] });
   } catch (error) {
     console.error('更新奖励失败:', error);
@@ -116,9 +137,18 @@ router.put('/:id', async (req, res) => {
 });
 
 // 删除奖励
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireParent, async (req, res) => {
   try {
     const { id } = req.params;
+
+    const checkResult = await pool.query('SELECT family_id FROM rewards WHERE id = $1', [id]);
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: '奖励不存在' });
+    }
+    if (checkResult.rows[0].family_id !== req.member.family_id) {
+      return res.status(403).json({ success: false, error: '无权操作该奖励' });
+    }
+
     await pool.query('DELETE FROM rewards WHERE id = $1', [id]);
     res.json({ success: true });
   } catch (error) {
@@ -127,12 +157,12 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// 直接兑换奖励
+// 直接兑换奖励（本人）
 router.post('/:id/exchange', async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { memberId } = req.body;
+    const memberId = req.member.id;
 
     await client.query('BEGIN');
 
@@ -145,6 +175,9 @@ router.post('/:id/exchange', async (req, res) => {
       throw new Error('奖励不存在');
     }
     const reward = rewardResult.rows[0];
+    if (reward.family_id !== req.member.family_id) {
+      throw new Error('无权兑换该奖励');
+    }
 
     // 检查是否可兑换
     if (!reward.is_exchangeable) {
@@ -211,23 +244,37 @@ router.post('/:id/exchange', async (req, res) => {
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('兑换失败:', error);
-    res.status(400).json({ success: false, error: error.message || '兑换失败' });
+    const msg = error.message || '兑换失败';
+    const status = msg.includes('无权') || msg.includes('不存在') ? 404 : 400;
+    res.status(status).json({ success: false, error: msg });
   } finally {
     client.release();
   }
 });
 
 // 确认兑换（家长确认领取）
-router.put('/exchange/:exchangeId/confirm', async (req, res) => {
+router.put('/exchange/:exchangeId/confirm', requireParent, async (req, res) => {
   try {
     const { exchangeId } = req.params;
+
+    // 兑换记录对应的奖励必须属于本家庭
+    const checkResult = await pool.query(
+      `SELECT re.id FROM reward_exchanges re
+       JOIN rewards r ON re.reward_id = r.id
+       WHERE re.id = $1 AND r.family_id = $2`,
+      [exchangeId, req.member.family_id]
+    );
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: '兑换记录不存在' });
+    }
+
     const result = await pool.query(
       `UPDATE reward_exchanges SET status = 'confirmed' WHERE id = $1 AND status = 'pending' RETURNING *`,
       [exchangeId]
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, error: '兑换记录不存在或已处理' });
+      return res.status(409).json({ success: false, error: '兑换记录已处理' });
     }
 
     res.json({ success: true, exchange: result.rows[0] });

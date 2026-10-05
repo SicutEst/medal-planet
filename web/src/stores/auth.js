@@ -39,6 +39,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (res.success) {
       member.value = res.member
       family.value = res.family
+      localStorage.setItem('token', res.token)
       localStorage.setItem('member', JSON.stringify(res.member))
       localStorage.setItem('family', JSON.stringify(res.family))
       return true
@@ -52,6 +53,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (res.success) {
       member.value = res.member
       family.value = res.family
+      localStorage.setItem('token', res.token)
       localStorage.setItem('member', JSON.stringify(res.member))
       localStorage.setItem('family', JSON.stringify(res.family))
       return true
@@ -62,6 +64,7 @@ export const useAuthStore = defineStore('auth', () => {
   function logout() {
     member.value = null
     family.value = null
+    localStorage.removeItem('token')
     localStorage.removeItem('member')
     localStorage.removeItem('family')
   }
@@ -124,6 +127,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (res.success) {
       member.value = res.member
       family.value = res.family
+      localStorage.setItem('token', res.token)
       localStorage.setItem('member', JSON.stringify(res.member))
       localStorage.setItem('family', JSON.stringify(res.family))
       saveRecentFamily(res.family, res.member)

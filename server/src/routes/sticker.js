@@ -1,16 +1,27 @@
 import express from 'express';
 import pool from '../db.js';
+import { requireAuth, requireParent } from '../lib/auth.js';
 
 const router = express.Router();
+
+router.use(requireAuth);
 
 // 贴纸转粉球比例
 const STICKERS_PER_BALL = 160;
 
-// 获取贴纸记录
+// 获取贴纸记录（本人或同家庭家长）
 router.get('/logs/:memberId', async (req, res) => {
   try {
     const { memberId } = req.params;
     const { limit, type } = req.query;
+
+    if (memberId !== req.member.id && req.member.role !== 'parent') {
+      return res.status(403).json({ success: false, error: '无权查看该成员的记录' });
+    }
+    const targetResult = await pool.query('SELECT family_id FROM members WHERE id = $1', [memberId]);
+    if (targetResult.rows.length === 0 || targetResult.rows[0].family_id !== req.member.family_id) {
+      return res.status(403).json({ success: false, error: '无权查看该成员的记录' });
+    }
 
     let query = `
       SELECT sl.*, t.name as task_name, a.reason as application_reason,
@@ -40,10 +51,24 @@ router.get('/logs/:memberId', async (req, res) => {
 });
 
 // 直接奖励/扣除贴纸（家长操作）
-router.post('/adjust', async (req, res) => {
+router.post('/adjust', requireParent, async (req, res) => {
   const client = await pool.connect();
   try {
-    const { memberId, changeType, amount, remark, operatorId } = req.body;
+    const { memberId, changeType, amount, remark } = req.body;
+    const operatorId = req.member.id;
+
+    if (!['earn', 'penalty', 'adjust'].includes(changeType)) {
+      return res.status(400).json({ success: false, error: '操作类型无效' });
+    }
+    if (!Number.isInteger(amount) || amount === 0 || Math.abs(amount) > 10000) {
+      return res.status(400).json({ success: false, error: '数量需为 1-10000 的非零整数' });
+    }
+
+    // 目标成员必须属于本家庭
+    const targetResult = await pool.query('SELECT family_id FROM members WHERE id = $1', [memberId]);
+    if (targetResult.rows.length === 0 || targetResult.rows[0].family_id !== req.member.family_id) {
+      return res.status(403).json({ success: false, error: '无权对该成员操作' });
+    }
 
     await client.query('BEGIN');
 
@@ -114,11 +139,14 @@ router.post('/adjust', async (req, res) => {
     await client.query('COMMIT');
 
     // 返回更新后的信息
-    const updatedMember = await pool.query('SELECT * FROM members WHERE id = $1', [memberId]);
+    const updatedMember = await pool.query(
+      'SELECT id, name, role, current_stickers, current_balls, total_stickers, total_balls, avatar FROM members WHERE id = $1',
+      [memberId]
+    );
 
     res.json({
       success: true,
-      message: `已${changeType === 'earn' ? '奖励' : '扣除'} ${amount} 贴纸`,
+      message: `已${changeType === 'earn' ? '奖励' : '扣除'} ${Math.abs(amount)} 贴纸`,
       member: updatedMember.rows[0]
     });
   } catch (error) {
@@ -130,11 +158,19 @@ router.post('/adjust', async (req, res) => {
   }
 });
 
-// 统计接口
+// 统计接口（本人或同家庭家长）
 router.get('/stats/:memberId', async (req, res) => {
   try {
     const { memberId } = req.params;
     const { period } = req.query;
+
+    if (memberId !== req.member.id && req.member.role !== 'parent') {
+      return res.status(403).json({ success: false, error: '无权查看该成员的统计' });
+    }
+    const targetResult = await pool.query('SELECT family_id FROM members WHERE id = $1', [memberId]);
+    if (targetResult.rows.length === 0 || targetResult.rows[0].family_id !== req.member.family_id) {
+      return res.status(403).json({ success: false, error: '无权查看该成员的统计' });
+    }
 
     let dateFilter = "AND sl.created_at >= NOW() - INTERVAL '30 days'";
     if (period === 'week') {

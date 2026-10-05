@@ -1,7 +1,10 @@
 import express from 'express';
 import pool from '../db.js';
+import { requireAuth, requireParent } from '../lib/auth.js';
 
 const router = express.Router();
+
+router.use(requireAuth);
 
 // 获取本地日期字符串（YYYY-MM-DD），避免 toISOString() 返回 UTC 日期导致的时区偏差
 function getLocalDateString(d = new Date()) {
@@ -11,10 +14,18 @@ function getLocalDateString(d = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
+// 校验任务属于当前用户家庭，通过返回任务行
+async function getFamilyTask(req, taskId) {
+  const result = await pool.query('SELECT * FROM tasks WHERE id = $1', [taskId]);
+  if (result.rows.length === 0) return { error: '任务不存在', code: 404 };
+  if (result.rows[0].family_id !== req.member.family_id) return { error: '无权操作该任务', code: 403 };
+  return { task: result.rows[0] };
+}
+
 // 获取任务列表
 router.get('/family/:familyId', async (req, res) => {
   try {
-    const { familyId } = req.params;
+    const familyId = req.member.family_id;
     const { category } = req.query;
 
     let query = `
@@ -43,8 +54,9 @@ router.get('/family/:familyId', async (req, res) => {
 // 获取今日任务
 router.get('/family/:familyId/today', async (req, res) => {
   try {
-    const { familyId } = req.params;
-    const { memberId, date } = req.query;
+    const familyId = req.member.family_id;
+    const memberId = req.member.id;
+    const { date } = req.query;
 
     const targetDate = date || getLocalDateString();
     const target = new Date(targetDate);
@@ -70,16 +82,13 @@ router.get('/family/:familyId/today', async (req, res) => {
         case 'daily':
           return true; // 每天
         case 'weekly':
-          // 每周：检查是否在正确的一周内
-          const weekStart = getWeekStart(target);
-          const taskWeekStart = task.created_at ? getWeekStart(new Date(task.created_at)) : weekStart;
-          // 计算当前是第几周
-          const weeksSinceStart = Math.floor((target - taskWeekStart) / (7 * 24 * 60 * 60 * 1000));
-          return weeksSinceStart % 1 === 0 && dayOfWeek === new Date(task.created_at).getDay();
+          // 每周：与任务创建日同星期几
+          return dayOfWeek === new Date(task.created_at).getDay();
         case 'monthly':
-          // 每月：检查是否是同一天
+          // 每月：与创建日的"日"号相同，31 号创建的任务在小月按月末处理
           const taskDay = new Date(task.created_at).getDate();
-          return target.getDate() === taskDay;
+          const lastDayOfMonth = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+          return target.getDate() === Math.min(taskDay, lastDayOfMonth);
         default:
           // custom: 检查是否在有效期内
           if (task.repeat_rule === 'custom' && task.custom_days) {
@@ -114,7 +123,7 @@ router.get('/family/:familyId/today', async (req, res) => {
     `, [familyId, memberId, targetDate]);
 
     // 合并结果
-    const allTasks = [...todayTasks.map(t => ({ ...t, is_today: true })), 
+    const allTasks = [...todayTasks.map(t => ({ ...t, is_today: true })),
                       ...tempTasksResult.rows.map(t => ({ ...t, is_today: true }))];
 
     res.json({
@@ -132,8 +141,9 @@ router.get('/family/:familyId/today', async (req, res) => {
 // 获取本周/本月进度（用于周期打卡）
 router.get('/family/:familyId/progress', async (req, res) => {
   try {
-    const { familyId } = req.params;
-    const { memberId, period, taskId } = req.query;
+    const familyId = req.member.family_id;
+    const memberId = req.member.id;
+    const { period, taskId } = req.query;
 
     const targetDate = new Date();
     let startDate, endDate, periodType;
@@ -151,25 +161,29 @@ router.get('/family/:familyId/progress', async (req, res) => {
       return res.status(400).json({ success: false, error: '无效的周期' });
     }
 
-    const query = taskId 
-      ? `AND t.id = $4`
-      : ``;
-    const params = taskId ? [familyId, memberId, startDate, endDate, taskId] : [familyId, memberId, startDate, endDate];
+    // repeat_rule 存的是 weekly/monthly，period 是 week/month
+    const repeatRule = period === 'week' ? 'weekly' : 'monthly';
+    const params = [familyId, memberId, startDate, endDate, repeatRule];
+    let taskFilter = '';
+    if (taskId) {
+      taskFilter = `AND t.id = $6`;
+      params.push(taskId);
+    }
 
     const result = await pool.query(`
       SELECT t.id, t.name, t.target_count, t.accumulative_mode,
         COUNT(tc.id) as completed_count
       FROM tasks t
-      LEFT JOIN task_completions tc ON t.id = tc.task_id 
-        AND tc.member_id = $2 
-        AND tc.completed_date >= $3::date 
+      LEFT JOIN task_completions tc ON t.id = tc.task_id
+        AND tc.member_id = $2
+        AND tc.completed_date >= $3::date
         AND tc.completed_date <= $4::date
         AND tc.is_subsidy = false
       WHERE t.family_id = $1 AND t.is_active = true AND t.category = 'habit'
         AND t.repeat_rule = $5
-        ${query}
+        ${taskFilter}
       GROUP BY t.id, t.name, t.target_count, t.accumulative_mode
-    `, taskId ? [familyId, memberId, startDate, endDate, period, taskId] : [familyId, memberId, startDate, endDate, period]);
+    `, params);
 
     res.json({
       success: true,
@@ -185,14 +199,20 @@ router.get('/family/:familyId/progress', async (req, res) => {
 });
 
 // 批量创建任务（从模板）
-router.post('/batch', async (req, res) => {
+router.post('/batch', requireParent, async (req, res) => {
   try {
-    const { familyId, tasks, createdBy } = req.body;
-    
+    const familyId = req.member.family_id;
+    const createdBy = req.member.id;
+    const { tasks } = req.body;
+
+    if (!Array.isArray(tasks) || tasks.length === 0) {
+      return res.status(400).json({ success: false, error: '任务列表不能为空' });
+    }
+
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      
+
       const createdTasks = [];
       for (const task of tasks) {
         // 坏习惯任务强制为简单模式
@@ -210,7 +230,7 @@ router.post('/batch', async (req, res) => {
         );
         createdTasks.push(result.rows[0]);
       }
-      
+
       await client.query('COMMIT');
       res.json({ success: true, tasks: createdTasks });
     } catch (e) {
@@ -226,12 +246,18 @@ router.post('/batch', async (req, res) => {
 });
 
 // 创建任务
-router.post('/', async (req, res) => {
+router.post('/', requireParent, async (req, res) => {
   try {
+    const familyId = req.member.family_id;
+    const createdBy = req.member.id;
     let {
-      familyId, name, description, category, repeatRule, customDays,
-      targetCount, accumulativeMode, validDays, stickerReward, createdBy
+      name, description, category, repeatRule, customDays,
+      targetCount, accumulativeMode, validDays, stickerReward
     } = req.body;
+
+    if (!name || typeof name !== 'string' || name.trim().length === 0 || name.length > 100) {
+      return res.status(400).json({ success: false, error: '任务名称需为 1-100 个字符' });
+    }
 
     // 坏习惯任务强制为简单模式：每次扣固定贴纸，不支持定量/累计
     if (category === 'bad_habit') {
@@ -247,7 +273,7 @@ router.post('/', async (req, res) => {
       `INSERT INTO tasks (family_id, name, description, category, repeat_rule, custom_days, target_count, accumulative_mode, valid_days, sticker_reward, created_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
-      [familyId, name, description || '', category || 'habit', repeatRule || 'daily',
+      [familyId, name.trim(), description || '', category || 'habit', repeatRule || 'daily',
        customDays || null, targetCount || 1, accumulativeMode || 'pass_or_fail',
        validDaysValue, stickerReward || 1, createdBy]
     );
@@ -260,9 +286,14 @@ router.post('/', async (req, res) => {
 });
 
 // 更新任务
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireParent, async (req, res) => {
   try {
     const { id } = req.params;
+    const check = await getFamilyTask(req, id);
+    if (check.error) {
+      return res.status(check.code).json({ success: false, error: check.error });
+    }
+
     const { name, description, repeatRule, customDays, targetCount, accumulativeMode, validDays, stickerReward, isActive } = req.body;
 
     const result = await pool.query(
@@ -289,9 +320,14 @@ router.put('/:id', async (req, res) => {
 });
 
 // 删除任务
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireParent, async (req, res) => {
   try {
     const { id } = req.params;
+    const check = await getFamilyTask(req, id);
+    if (check.error) {
+      return res.status(check.code).json({ success: false, error: check.error });
+    }
+
     await pool.query('DELETE FROM tasks WHERE id = $1', [id]);
     res.json({ success: true });
   } catch (error) {
@@ -304,15 +340,16 @@ router.delete('/:id', async (req, res) => {
 router.post('/:id/complete', async (req, res) => {
   try {
     const { id } = req.params;
-    const { memberId, date, count = 1, isSubsidy = false, subsidyDate = null } = req.body;
+    const memberId = req.member.id;
+    const { date, count = 1, isSubsidy = false, subsidyDate = null } = req.body;
     const targetDate = date || getLocalDateString();
 
     // 获取任务信息
-    const taskResult = await pool.query('SELECT * FROM tasks WHERE id = $1', [id]);
-    if (taskResult.rows.length === 0) {
-      return res.status(404).json({ success: false, error: '任务不存在' });
+    const check = await getFamilyTask(req, id);
+    if (check.error) {
+      return res.status(check.code).json({ success: false, error: check.error });
     }
-    const task = taskResult.rows[0];
+    const task = check.task;
 
     const client = await pool.connect();
     try {
@@ -328,10 +365,10 @@ router.post('/:id/complete', async (req, res) => {
 
         if (existing.rows.length > 0) {
           // 累计型：继续累加
-          const newCount = task.accumulative_mode === 'cumulative' 
-            ? existing.rows[0].count_today + count 
+          const newCount = task.accumulative_mode === 'cumulative'
+            ? existing.rows[0].count_today + count
             : count;
-          
+
           await client.query(
             'UPDATE task_completions SET count_today = $1 WHERE id = $2',
             [newCount, existing.rows[0].id]
@@ -410,9 +447,28 @@ router.post('/:id/complete', async (req, res) => {
 });
 
 // 补贴（补卡）
-router.post('/subsidy', async (req, res) => {
+router.post('/subsidy', requireParent, async (req, res) => {
   try {
-    const { taskId, memberId, subsidyDate, stickerReward, createdBy } = req.body;
+    const { taskId, memberId, subsidyDate, stickerReward } = req.body;
+    const createdBy = req.member.id;
+
+    if (!taskId || !memberId || !subsidyDate) {
+      return res.status(400).json({ success: false, error: '请提供完整的补贴信息' });
+    }
+
+    const check = await getFamilyTask(req, taskId);
+    if (check.error) {
+      return res.status(check.code).json({ success: false, error: check.error });
+    }
+
+    const targetResult = await pool.query('SELECT family_id FROM members WHERE id = $1', [memberId]);
+    if (targetResult.rows.length === 0 || targetResult.rows[0].family_id !== req.member.family_id) {
+      return res.status(403).json({ success: false, error: '无权对该成员补贴' });
+    }
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(subsidyDate)) {
+      return res.status(400).json({ success: false, error: '补贴日期格式无效' });
+    }
 
     const client = await pool.connect();
     try {
@@ -431,6 +487,9 @@ router.post('/subsidy', async (req, res) => {
       res.json({ success: true, message: '补贴成功' });
     } catch (e) {
       await client.query('ROLLBACK');
+      if (e.code === '23505') {
+        return res.status(400).json({ success: false, error: '该成员在这一天已有此任务的完成记录，无需补贴' });
+      }
       throw e;
     } finally {
       client.release();
