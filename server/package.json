@@ -14,5 +14,6 @@
     "pg": "^8.11.3",
     "uuid": "^9.0.0",
     "jsonwebtoken": "^9.0.2"
-  }
+  },
+  "license": "MIT"
 }
