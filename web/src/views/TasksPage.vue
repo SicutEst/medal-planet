@@ -143,20 +143,26 @@ onMounted(() => {
 }
 
 .card h3 {
-  margin-bottom: 16px;
-  font-size: 16px;
+  margin-bottom: 14px;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
 }
 
 .task-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 0;
-  border-bottom: 1px solid #F5F5F5;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--card-bg);
+  margin-bottom: 10px;
 }
 
 .task-item:last-child {
-  border-bottom: none;
+  margin-bottom: 0;
 }
 
 .task-info {
@@ -165,6 +171,7 @@ onMounted(() => {
 
 .task-name {
   font-weight: 500;
+  font-size: 15px;
   margin-bottom: 4px;
 }
 
@@ -173,6 +180,7 @@ onMounted(() => {
   gap: 6px;
   align-items: center;
   flex-wrap: wrap;
+  margin-top: 6px;
 }
 
 .tag {

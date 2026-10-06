@@ -839,8 +839,11 @@ onMounted(() => {
 .rank-item {
   display: flex;
   align-items: center;
-  padding: 12px 0;
-  border-bottom: 1px solid #F5F5F5;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
 }
 
 .rank-item:last-child {
@@ -874,8 +877,11 @@ onMounted(() => {
 .log-item {
   display: flex;
   align-items: center;
-  padding: 12px 0;
-  border-bottom: 1px solid #F5F5F5;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
 }
 
 .log-item:last-child {
