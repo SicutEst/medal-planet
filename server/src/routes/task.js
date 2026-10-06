@@ -123,9 +123,14 @@ router.get('/family/:familyId/today', async (req, res) => {
       ORDER BY t.created_at DESC
     `, [familyId, memberId, targetDate]);
 
-    // 合并结果
+    // 合并结果；统一完成次数字段名为 count_today（SQL 别名是 completed_count，
+    // 前端打卡逻辑按 count_today 读写，名字不一致会导致刷新后勾选状态丢失）
     const allTasks = [...todayTasks.map(t => ({ ...t, is_today: true })),
-                      ...tempTasksResult.rows.map(t => ({ ...t, is_today: true }))];
+                      ...tempTasksResult.rows.map(t => ({ ...t, is_today: true }))]
+      .map(t => {
+        const c = t.completed_count || 0;
+        return { ...t, count_today: c, is_completed_today: c };
+      });
 
     res.json({
       success: true,
@@ -432,6 +437,51 @@ router.post('/:id/complete', async (req, res) => {
     }
   } catch (error) {
     console.error('完成任务失败:', error);
+    res.status(500).json({ success: false, error: '操作失败' });
+  }
+});
+
+// 取消今日打卡（重新点击已勾选的任务时调用）
+// 规则：已提交审批（pending/approved）的不可取消；坏习惯与补贴记录不可取消
+router.post('/:id/uncomplete', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const memberId = req.member.id;
+    const { date } = req.body;
+    const targetDate = date || getLocalDateString();
+
+    const check = await getFamilyTask(req, id);
+    if (check.error) {
+      return res.status(check.code).json({ success: false, error: check.error });
+    }
+    if (check.task.category === 'bad_habit') {
+      return res.status(400).json({ success: false, error: '坏习惯记录不支持取消' });
+    }
+
+    const appResult = await pool.query(
+      `SELECT id FROM applications
+       WHERE applicant_id = $1 AND task_id = $2
+         AND status IN ('pending', 'approved')
+         AND created_at >= $3::date AND created_at < ($3::date + INTERVAL '1 day')`,
+      [memberId, id, targetDate]
+    );
+    if (appResult.rows.length > 0) {
+      return res.status(409).json({ success: false, error: '该任务已提交审批，不能取消打卡' });
+    }
+
+    const del = await pool.query(
+      `DELETE FROM task_completions
+       WHERE task_id = $1 AND member_id = $2 AND completed_date = $3 AND is_subsidy = false
+       RETURNING id`,
+      [id, memberId, targetDate]
+    );
+    if (del.rows.length === 0) {
+      return res.status(404).json({ success: false, error: '今日没有该任务的打卡记录' });
+    }
+
+    res.json({ success: true, message: '已取消今日打卡' });
+  } catch (error) {
+    console.error('取消打卡失败:', error);
     res.status(500).json({ success: false, error: '操作失败' });
   }
 });

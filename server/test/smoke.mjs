@@ -89,6 +89,14 @@ let taskId, badTaskId, quotaTaskId;
   const dup = await api('POST', `/task/${taskId}/complete`, { token: childToken, body: {} });
   check('重复打卡被拒 400', dup.status === 400);
 
+  // 取消打卡：删除今日记录后可重新打卡
+  const un = await api('POST', `/task/${taskId}/uncomplete`, { token: childToken, body: {} });
+  check('取消打卡成功', un.data?.success === true);
+  const re = await api('POST', `/task/${taskId}/complete`, { token: childToken, body: {} });
+  check('取消后可重新打卡', re.data?.success === true);
+  const unBad = await api('POST', `/task/${badTaskId}/uncomplete`, { token: childToken, body: {} });
+  check('坏习惯记录不可取消 400', unBad.status === 400);
+
   const bad = await api('POST', `/task/${badTaskId}/complete`, { token: childToken, body: {} });
   check('坏习惯打卡成功（余额0实际扣0）', bad.data?.success === true && bad.data.actualDeduction === 0, '实际=' + JSON.stringify(bad.data));
 
@@ -106,6 +114,10 @@ let taskId, badTaskId, quotaTaskId;
   const r = await api('POST', '/application', { token: childToken, body: { taskId, applicationType: 'earn', requestedStickers: 5, reason: 'test' } });
   check('孩子创建申请', r.data?.success === true);
   const appId = r.data.application.id;
+
+  // 有待审批申请时不可取消打卡
+  const unBlock = await api('POST', `/task/${taskId}/uncomplete`, { token: childToken, body: {} });
+  check('已提交审批时取消打卡被拒 409', unBlock.status === 409);
 
   const childReview = await api('PUT', `/application/${appId}/review`, { token: childToken, body: { approved: true } });
   check('孩子审批被拒 403', childReview.status === 403);

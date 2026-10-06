@@ -49,18 +49,19 @@
         <div
           v-for="task in todayTasks"
           :key="task.id"
-          class="task-item"
+          class="task-item clickable"
           :class="{
             completed: isTaskDone(task) && task.category !== 'bad_habit',
             'bad-habit': task.category === 'bad_habit',
             'todo-task': task.category === 'temporary'
           }"
+          @click="toggleTask(task)"
         >
           <div class="checkbox" :class="{
             checked: isTaskDone(task),
             'bad-habit-check': task.category === 'bad_habit',
             'todo-check': task.category === 'temporary'
-          }" @click="toggleTask(task)">
+          }">
             <span v-if="isTaskDone(task)">{{ task.category === 'bad_habit' ? '✗' : '✓' }}</span>
           </div>
           <div class="task-name">
@@ -329,10 +330,29 @@ const loadPendingApps = async () => {
 
 const toggleTask = async (task) => {
   const count = task.count_today || 0
-  // 已完成/已达标的任务不可再打卡（累计型不设上限）
+  const isSingle = task.target_count === 1
+  const isCumulative = task.target_count > 1 && task.accumulative_mode === 'cumulative'
+
+  // 已勾选的任务再次点击 = 取消今日打卡
+  // （累计型不支持：每次点击都是一次真实行为；坏习惯即时扣分，不支持撤销）
+  if (!isCumulative && task.category !== 'bad_habit' && isTaskDone(task)) {
+    if (!confirm(`取消「${task.name}」今日的打卡？`)) return
+    try {
+      await api.post(`/task/${task.id}/uncomplete`, { date: localDateStr() })
+      task.count_today = 0
+      task.is_completed_today = 0
+    } catch (e) {
+      alert(e?.response?.data?.error || '取消失败')
+    }
+    return
+  }
+
+  // 未完成的任务：单次任务已完成不可重复打卡；坏习惯一天只记一次
   if (task.category !== 'bad_habit') {
-    if (task.target_count === 1 && count >= 1) return
-    if (task.target_count > 1 && task.accumulative_mode === 'pass_or_fail' && count >= task.target_count) return
+    if (isSingle && count >= 1) return
+    if (!isSingle && !isCumulative && count >= task.target_count) return
+  } else if (count >= 1) {
+    return
   }
 
   // 坏习惯需要确认
@@ -359,6 +379,7 @@ const toggleTask = async (task) => {
     }
   } catch (e) {
     console.error('完成任务失败', e)
+    alert(e?.response?.data?.error || '打卡失败')
   }
 }
 
@@ -606,6 +627,10 @@ onMounted(() => {
 }
 
 /* 坏习惯任务样式 */
+.task-item.clickable {
+  cursor: pointer;
+}
+
 .task-item.bad-habit {
   background: #FFF8F8;
   border: 1px solid #FFCDD2;
