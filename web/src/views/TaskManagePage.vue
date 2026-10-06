@@ -26,7 +26,7 @@
               <div class="task-manage-info">
                 <div class="task-name">{{ task.name }}</div>
                 <div class="task-meta">
-                  <span class="reward">+{{ task.sticker_reward }} 🎟️</span>
+                  <span class="reward">+{{ task.sticker_reward }} {{ cur[0] }}</span>
                   <span class="tag tag-sky">{{ getRepeatText(task) }}</span>
                   <span v-if="task.target_count > 1" class="tag tag-gold">
                     目标 {{ task.target_count }} 次/天
@@ -57,7 +57,7 @@
               <div class="task-manage-info">
                 <div class="task-name">{{ task.name }}</div>
                 <div class="task-meta">
-                  <span class="reward penalty">-{{ task.sticker_reward }} 🎟️</span>
+                  <span class="reward penalty">-{{ task.sticker_reward }} {{ cur[0] }}</span>
                   <span class="tag tag-red">{{ getRepeatText(task) }}</span>
                   <span class="tag tag-warn">每次扣除</span>
                 </div>
@@ -307,10 +307,12 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
+import { themeCurrencies } from '../utils/theme'
 import api from '../api'
 import Icon from '../components/IconPark.vue'
 
 const authStore = useAuthStore()
+const cur = computed(() => themeCurrencies())
 const tasks = ref([])
 const loading = ref(false)
 

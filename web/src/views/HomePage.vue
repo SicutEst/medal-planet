@@ -14,13 +14,13 @@
     <!-- 余额卡片 -->
     <div class="balance-card">
       <div class="balance-item">
-        <div class="icon">🎟️</div>
+        <div class="icon">{{ cur[0] }}</div>
         <div class="value">{{ authStore.member?.current_stickers || 0 }}</div>
         <div class="label">贴纸</div>
       </div>
       <div class="balance-divider"></div>
       <div class="balance-item">
-        <div class="icon">🔮</div>
+        <div class="icon">{{ cur[1] }}</div>
         <div class="value">{{ authStore.member?.current_balls || 0 }}</div>
         <div class="label">粉球</div>
         <div class="progress-tip">
@@ -85,7 +85,7 @@
             </div>
           </div>
           <div class="reward" :class="{ penalty: task.category === 'bad_habit' }">
-            {{ task.category === 'bad_habit' ? '-' : '+' }}{{ task.sticker_reward }} 🎟️
+            {{ task.category === 'bad_habit' ? '-' : '+' }}{{ task.sticker_reward }} {{ cur[0] }}
           </div>
         </div>
 
@@ -188,7 +188,7 @@
           <select v-model="subsidyForm.taskId" class="input">
             <option value="">请选择</option>
             <option v-for="task in habitTasks" :key="task.id" :value="task.id">
-              {{ task.name }} (+{{ task.sticker_reward }}🎟️)
+              {{ task.name }} (+{{ task.sticker_reward }}{{ cur[0] }})
             </option>
           </select>
         </div>
@@ -217,9 +217,12 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { localDateStr } from '../utils/date'
+import { themeCurrencies } from '../utils/theme'
 import api from '../api'
 
 const authStore = useAuthStore()
+// 货币图标随主题（[贴纸, 粉球]）
+const cur = computed(() => themeCurrencies())
 const todayTasks = ref([])
 const pendingApps = ref([])
 const loading = ref(false)

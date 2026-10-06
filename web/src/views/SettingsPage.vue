@@ -119,6 +119,28 @@
       </div>
     </div>
 
+    <!-- 换皮肤 -->
+    <div class="card">
+      <h3>🎨 换皮肤</h3>
+      <p class="theme-tip">每个成员可以选自己喜欢的主题，只影响自己</p>
+      <div class="theme-grid">
+        <button
+          v-for="t in themes"
+          :key="t.id"
+          class="theme-card"
+          :class="{ active: currentThemeId === t.id }"
+          @click="pickTheme(t.id)"
+        >
+          <span class="theme-dots">
+            <i v-for="(c, i) in t.colors" :key="i" :style="{ background: c }"></i>
+          </span>
+          <span class="theme-name">{{ t.name }}</span>
+          <span class="theme-desc">{{ t.desc }}</span>
+          <span class="theme-cur">{{ t.cur[0] }} {{ t.cur[1] }}</span>
+        </button>
+      </div>
+    </div>
+
     <!-- 登出 -->
     <button class="btn btn-secondary" style="width: 100%" @click="logout">
       🚪 退出登录
@@ -136,8 +158,16 @@ import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import api from '../api'
 import QRCode from 'qrcode'
+import { THEMES, currentTheme, applyTheme } from '../utils/theme'
 
 const authStore = useAuthStore()
+
+// 主题
+const themes = THEMES
+const currentThemeId = currentTheme
+const pickTheme = (id) => {
+  applyTheme(id, authStore.member?.id)
+}
 const members = ref([])
 const copied = ref(false)
 const linkCopied = ref(false)
@@ -576,5 +606,66 @@ onMounted(() => {
 .avatar-option.selected {
   border-color: var(--primary);
   background: rgba(255, 105, 180, 0.1);
+}
+.theme-tip {
+  font-size: 13px;
+  color: var(--text-light);
+  margin-bottom: 12px;
+}
+
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.theme-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 8px 12px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--card-bg);
+  cursor: pointer;
+  transition: transform 0.1s, border-color 0.15s;
+}
+
+.theme-card:active {
+  transform: scale(0.96);
+}
+
+.theme-card.active {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-light);
+}
+
+.theme-dots {
+  display: flex;
+  gap: 3px;
+}
+
+.theme-dots i {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+}
+
+.theme-name {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.theme-desc {
+  font-size: 10px;
+  color: var(--text-light);
+  text-align: center;
+  line-height: 1.3;
+}
+
+.theme-cur {
+  font-size: 14px;
 }
 </style>

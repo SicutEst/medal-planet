@@ -9,7 +9,7 @@
 
     <!-- 粉球余额 -->
     <div class="ball-card">
-      <div class="ball-icon">🔮</div>
+      <div class="ball-icon">{{ cur[1] }}</div>
       <div class="ball-value">{{ authStore.member?.current_balls || 0 }}</div>
       <div class="ball-label">当前粉球</div>
     </div>
@@ -43,7 +43,7 @@
             </div>
           </div>
           <div class="reward-action">
-            <div class="reward-cost">{{ reward.required_balls }} 🔮</div>
+            <div class="reward-cost">{{ reward.required_balls }} {{ cur[1] }}</div>
             <button
               v-if="!authStore.isParent"
               class="btn btn-primary btn-sm"
@@ -81,10 +81,10 @@
         </div>
         <div class="gacha-buttons" v-if="!authStore.isParent">
           <button class="btn btn-primary" @click="doGacha(1)" :disabled="gachaLoading || (authStore.member?.current_balls || 0) < 10">
-            {{ gachaLoading ? '抽取中...' : '单抽 (10🔮)' }}
+            {{ gachaLoading ? '抽取中...' : '单抽 (10' + cur[1] + ')' }}
           </button>
           <button class="btn btn-secondary" @click="doGacha(10)" :disabled="gachaLoading || (authStore.member?.current_balls || 0) < 100">
-            {{ gachaLoading ? '抽取中...' : '十连 (100🔮)' }}
+            {{ gachaLoading ? '抽取中...' : '十连 (100' + cur[1] + ')' }}
           </button>
         </div>
         <div class="gacha-hint">💡 粉球通过累计贴纸获得，每 160 贴纸 = 1 粉球</div>
@@ -128,7 +128,7 @@
             <div class="exchange-time">{{ formatTime(ex.created_at) }}</div>
           </div>
           <div class="exchange-right">
-            <div class="exchange-cost">-{{ ex.cost_balls }} 🔮</div>
+            <div class="exchange-cost">-{{ ex.cost_balls }} {{ cur[1] }}</div>
             <span class="status-badge" :class="ex.status">
               {{ ex.status === 'pending' ? '待领取' : ex.status === 'confirmed' ? '已领取' : '已取消' }}
             </span>
@@ -283,9 +283,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
+import { themeCurrencies } from '../utils/theme'
 import api from '../api'
 
 const authStore = useAuthStore()
+const cur = computed(() => themeCurrencies())
 const tab = ref('exchange')
 const rewards = ref([])
 const exchanges = ref([])

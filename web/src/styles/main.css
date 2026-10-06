@@ -72,7 +72,7 @@ body {
 .btn-primary:disabled { background: #C6CDD4; box-shadow: 0 4px 0 #A9B1B9; }
 
 .btn-secondary {
-  background: white;
+  background: var(--card-bg);
   color: var(--primary-dark);
   box-shadow: 0 4px 0 var(--line);
   border: 2px solid var(--line);
@@ -259,7 +259,7 @@ body {
   align-items: center;
   gap: 12px;
   padding: 16px;
-  background: white;
+  background: var(--card-bg);
   border-radius: var(--radius-sm);
   margin-bottom: 12px;
   border: 2px solid var(--line);
@@ -272,7 +272,7 @@ body {
 
 .task-item.completed {
   opacity: 0.62;
-  background: #FAF7F0;
+  background: var(--primary-light);
 }
 
 .task-item .checkbox {
@@ -323,7 +323,7 @@ body {
   right: 0;
   display: flex;
   justify-content: space-around;
-  background: white;
+  background: var(--card-bg);
   padding: 10px 0 14px;
   box-shadow: 0 -4px 20px rgba(186, 156, 106, 0.12);
   border-radius: var(--radius) var(--radius) 0 0;
@@ -360,7 +360,7 @@ body {
 
 /* ---------- 审批卡片 ---------- */
 .application-card {
-  background: white;
+  background: var(--card-bg);
   border-radius: var(--radius-sm);
   padding: 16px;
   margin-bottom: 12px;
@@ -449,7 +449,7 @@ body {
 }
 
 .modal {
-  background: white;
+  background: var(--card-bg);
   border-radius: var(--radius);
   padding: 24px;
   max-width: 360px;
@@ -482,4 +482,307 @@ body {
 .link {
   color: var(--primary-dark);
   font-weight: 600;
+}
+
+/* ============================================================
+   主题包：每套皮肤 = 变量覆盖 + 少量形状覆盖
+   ============================================================ */
+
+/* ---------- 像素方块（我的世界风）---------- */
+html[data-theme='minecraft'] {
+  --primary: #5B8731;
+  --primary-light: #DCE8C8;
+  --primary-dark: #3E6B1F;
+  --secondary: #C6A15B;
+  --secondary-light: #F2E6C8;
+  --accent: #57A64E;
+  --accent-light: #DFEED8;
+  --coral: #C0453A;
+  --coral-light: #F4D9D4;
+  --purple: #7B5EA7;
+  --purple-light: #E7DEF2;
+  --sky: #3D8FBF;
+  --sky-light: #DCEEF7;
+  --bg: #EFEAC8;
+  --text: #2E2A1F;
+  --text-light: #8A8468;
+  --line: #D8CFA8;
+  --radius: 4px;
+  --radius-sm: 2px;
+  --shadow: 3px 3px 0 rgba(62, 62, 54, 0.18);
+  --shadow-lift: 5px 5px 0 rgba(62, 62, 54, 0.22);
+}
+
+/* 方块感：硬阴影按钮 + 方形复选框 + 方卡描边 */
+html[data-theme='minecraft'] .btn {
+  border-radius: 2px;
+  box-shadow: 3px 3px 0 rgba(46, 42, 31, 0.35);
+}
+
+html[data-theme='minecraft'] .btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 rgba(46, 42, 31, 0.35);
+}
+
+html[data-theme='minecraft'] .task-item .checkbox {
+  border-radius: 2px;
+}
+
+html[data-theme='minecraft'] .card {
+  border: 3px solid #C4BA90;
+}
+
+html[data-theme='minecraft'] .header {
+  border-radius: 4px;
+  box-shadow: 4px 4px 0 var(--primary-dark);
+}
+
+html[data-theme='minecraft'] .tag {
+  border-radius: 2px;
+}
+
+/* ---------- 活力闯关（多邻国风）---------- */
+html[data-theme='duo'] {
+  --primary: #58CC02;
+  --primary-light: #D7FFB8;
+  --primary-dark: #46A302;
+  --secondary: #FFC800;
+  --secondary-light: #FFF3C4;
+  --accent: #58CC02;
+  --accent-light: #E4FAD2;
+  --coral: #FF4B4B;
+  --coral-light: #FFDEDE;
+  --purple: #A560E8;
+  --purple-light: #EFE0FC;
+  --sky: #1CB0F6;
+  --sky-light: #DDF1FF;
+  --bg: #F4FBF4;
+  --text: #3C3C3C;
+  --text-light: #9AA8B1;
+  --line: #E5F0DF;
+  --radius: 16px;
+  --radius-sm: 12px;
+  --shadow: 0 6px 18px rgba(88, 204, 2, 0.10);
+}
+
+/* ---------- 圆滚滚（蛋仔风）---------- */
+html[data-theme='eggy'] {
+  --primary: #FF7EB0;
+  --primary-light: #FFE3EE;
+  --primary-dark: #E8558C;
+  --secondary: #FFE066;
+  --secondary-light: #FFF7D6;
+  --accent: #4ED6B8;
+  --accent-light: #DFF8F1;
+  --coral: #FF8A7A;
+  --coral-light: #FFE7E2;
+  --purple: #9D8CFF;
+  --purple-light: #EFEBFF;
+  --sky: #74C0FF;
+  --sky-light: #E7F4FF;
+  --bg: #FFF7F0;
+  --text: #4A3F44;
+  --text-light: #B0A3AB;
+  --line: #F5E4DC;
+  --radius: 28px;
+  --radius-sm: 20px;
+  --shadow: 0 8px 20px rgba(232, 85, 140, 0.10);
+}
+
+/* 圆滚滚：胶囊按钮 + 按压弹跳 */
+html[data-theme='eggy'] .btn {
+  border-radius: 999px;
+}
+
+html[data-theme='eggy'] .task-item {
+  border-radius: 22px;
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+html[data-theme='eggy'] .task-item:active {
+  transform: scale(0.96);
+}
+
+html[data-theme='eggy'] .tag {
+  border-radius: 999px;
+}
+
+/* ---------- 冒险红蓝（马里奥风）---------- */
+html[data-theme='mario'] {
+  --primary: #E52521;
+  --primary-light: #FFDEDB;
+  --primary-dark: #B01D14;
+  --secondary: #FBD000;
+  --secondary-light: #FFF6C8;
+  --accent: #43B047;
+  --accent-light: #DFF2E0;
+  --coral: #E52521;
+  --coral-light: #FFDEDB;
+  --purple: #049CD8;
+  --purple-light: #DCF1FA;
+  --sky: #049CD8;
+  --sky-light: #DCF1FA;
+  --bg: #FFF8E7;
+  --text: #3B3020;
+  --text-light: #A6977E;
+  --line: #EBDDBB;
+  --radius: 14px;
+  --radius-sm: 10px;
+  --shadow: 0 5px 16px rgba(176, 29, 20, 0.10);
+}
+
+/* 冒险：按钮顶部白色高光（游戏 HUD 质感） */
+html[data-theme='mario'] .btn-primary,
+html[data-theme='mario'] .btn-success,
+html[data-theme='mario'] .btn-danger {
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.35), 0 4px 0 var(--primary-dark);
+}
+
+html[data-theme='mario'] .card {
+  border: 3px solid #E3D3AC;
+}
+
+/* ---------- 电光蓝环（索尼克风）---------- */
+html[data-theme='sonic'] {
+  --primary: #0F6FFF;
+  --primary-light: #DCE9FF;
+  --primary-dark: #0A4FCC;
+  --secondary: #FFD100;
+  --secondary-light: #FFF6C4;
+  --accent: #00C2A8;
+  --accent-light: #D6F6F0;
+  --coral: #FF6B4A;
+  --coral-light: #FFE3DB;
+  --purple: #7C5CFF;
+  --purple-light: #E8E2FF;
+  --sky: #29ABE2;
+  --sky-light: #DCF2FB;
+  --bg: #F0F6FF;
+  --text: #22314A;
+  --text-light: #8B9BB4;
+  --line: #DCE7F5;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 6px 18px rgba(15, 111, 255, 0.10);
+}
+
+/* 电光：头部速度斜纹 */
+html[data-theme='sonic'] .header {
+  background: repeating-linear-gradient(
+    -55deg,
+    var(--primary) 0 26px,
+    #2B83FF 26px 34px
+  );
+}
+
+/* ---------- 星空夜航（夜间）---------- */
+html[data-theme='space'] {
+  --primary: #6C8CFF;
+  --primary-light: #2A3663;
+  --primary-dark: #4A63D6;
+  --secondary: #FFD166;
+  --secondary-light: #3A3660;
+  --accent: #58C472;
+  --accent-light: #23463A;
+  --coral: #FF7B6B;
+  --coral-light: #4A2E3A;
+  --purple: #9D8CFF;
+  --purple-light: #35315C;
+  --sky: #74C0FF;
+  --sky-light: #26375C;
+  --bg: #1A2140;
+  --card-bg: #242D52;
+  --text: #E8ECF8;
+  --text-light: #97A0BF;
+  --line: #33406E;
+  --shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+/* 夜空：底色加星星 */
+html[data-theme='space'] body {
+  background-image:
+    radial-gradient(1.5px 1.5px at 18% 12%, #FFF 100%, transparent 100%),
+    radial-gradient(1px 1px at 68% 22%, #cfd8ff 100%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 42% 48%, #FFF 100%, transparent 100%),
+    radial-gradient(1px 1px at 85% 62%, #ffd166 100%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 12% 76%, #FFF 100%, transparent 100%),
+    radial-gradient(1px 1px at 55% 88%, #cfd8ff 100%, transparent 100%);
+  background-attachment: fixed;
+}
+
+html[data-theme='space'] .input {
+  background: #1D2545;
+  color: var(--text);
+}
+
+html[data-theme='space'] .task-item.completed {
+  background: var(--primary-light);
+}
+
+/* ---------- 花园物语 ---------- */
+html[data-theme='garden'] {
+  --primary: #5CA052;
+  --primary-light: #E2EEDD;
+  --primary-dark: #3F7A37;
+  --secondary: #D97742;
+  --secondary-light: #F8E5D4;
+  --accent: #5CA052;
+  --accent-light: #E2EEDD;
+  --coral: #C05B4D;
+  --coral-light: #F4DBD5;
+  --purple: #8A7BA8;
+  --purple-light: #EAE5F2;
+  --sky: #5B9BB5;
+  --sky-light: #DFEEF4;
+  --bg: #F5F7EE;
+  --text: #33402C;
+  --text-light: #93A088;
+  --line: #E0E7D2;
+  --radius: 22px;
+  --radius-sm: 14px;
+  --shadow: 0 6px 18px rgba(92, 160, 82, 0.10);
+}
+
+/* 花园：复选框变叶子形 */
+html[data-theme='garden'] .task-item .checkbox {
+  border-radius: 50% 0 50% 50%;
+  transform: rotate(-45deg);
+}
+
+html[data-theme='garden'] .task-item .checkbox span {
+  transform: rotate(45deg);
+}
+
+/* ---------- 甜心马卡龙 ---------- */
+html[data-theme='macaron'] {
+  --primary: #F49FB6;
+  --primary-light: #FDE7ED;
+  --primary-dark: #E277A0;
+  --secondary: #F7D794;
+  --secondary-light: #FDF3DD;
+  --accent: #7ECFB2;
+  --accent-light: #E2F6EE;
+  --coral: #F6867F;
+  --coral-light: #FDE6E4;
+  --purple: #B28DD9;
+  --purple-light: #F1E8F9;
+  --sky: #8FC7EE;
+  --sky-light: #E5F2FB;
+  --bg: #FEF5F7;
+  --text: #4C3A44;
+  --text-light: #B5A0AC;
+  --line: #F3E2E8;
+  --radius: 24px;
+  --radius-sm: 16px;
+  --shadow: 0 6px 18px rgba(244, 159, 182, 0.12);
+}
+
+/* 马卡龙：柔和粉紫阴影 + 圆润按钮 */
+html[data-theme='macaron'] .btn {
+  border-radius: 999px;
+}
+
+html[data-theme='macaron'] .header::before,
+html[data-theme='macaron'] .header::after {
+  background: rgba(255, 255, 255, 0.25);
 }
