@@ -68,9 +68,17 @@
             {{ task.name }}
             <span v-if="task.category === 'bad_habit'" class="tag tag-warn">坏习惯</span>
             <span v-else-if="task.category === 'temporary'" class="tag tag-todo">待办</span>
-            <span v-if="task.target_count > 1" class="tag tag-gold">
-              {{ task.accumulative_mode === 'cumulative' ? '累计' : '达标' }} {{ task.count_today || 0 }}/{{ task.target_count }}
-            </span>
+            <template v-if="task.target_count > 1">
+              <span
+                v-if="(task.count_today || 0) > 0"
+                class="count-minus"
+                title="减一次"
+                @click.stop="decrementTask(task)"
+              >－</span>
+              <span class="tag tag-gold">
+                {{ task.accumulative_mode === 'cumulative' ? '累计' : '达标' }} {{ task.count_today || 0 }}/{{ task.target_count }}
+              </span>
+            </template>
           </div>
           <div class="reward" :class="{ penalty: task.category === 'bad_habit' }">
             {{ task.category === 'bad_habit' ? '-' : '+' }}{{ task.sticker_reward }} 🎟️
@@ -290,13 +298,27 @@ const hasCompletedTask = computed(() => {
   return todayTasks.value.some(t => (t.count_today || 0) > 0 && t.category !== 'bad_habit')
 })
 
-// 任务今日是否算"完成"：达标型需达到目标次数，其余有记录即算
+// 任务今日是否算"完成"：多计数任务（达标/累计）需达到目标次数，其余有记录即算
 const isTaskDone = (task) => {
   const count = task.count_today || 0
-  if (task.target_count > 1 && task.accumulative_mode === 'pass_or_fail') {
+  if (task.target_count > 1) {
     return count >= task.target_count
   }
   return count > 0
+}
+
+// 多计数任务递减一次（纠错用，无弹窗）
+const decrementTask = async (task) => {
+  try {
+    const res = await api.post(`/task/${task.id}/uncomplete`, {
+      date: localDateStr(),
+      count: 1
+    })
+    task.count_today = res?.countToday ?? Math.max(0, (task.count_today || 0) - 1)
+    task.is_completed_today = task.count_today
+  } catch (e) {
+    alert(e?.response?.data?.error || '操作失败')
+  }
 }
 
 const loadTodayTasks = async () => {
@@ -330,13 +352,10 @@ const loadPendingApps = async () => {
 
 const toggleTask = async (task) => {
   const count = task.count_today || 0
-  const isSingle = task.target_count === 1
-  const isCumulative = task.target_count > 1 && task.accumulative_mode === 'cumulative'
 
-  // 已勾选的任务再次点击 = 取消今日打卡
-  // （累计型不支持：每次点击都是一次真实行为；坏习惯即时扣分，不支持撤销）
-  if (!isCumulative && task.category !== 'bad_habit' && isTaskDone(task)) {
-    if (!confirm(`取消「${task.name}」今日的打卡？`)) return
+  // 已达成目标次数的任务再次点击 = 取消今日打卡（直接切换，无弹窗；
+  // 坏习惯即时扣分不适用，由其专属确认框把关）
+  if (task.category !== 'bad_habit' && isTaskDone(task)) {
     try {
       await api.post(`/task/${task.id}/uncomplete`, { date: localDateStr() })
       task.count_today = 0
@@ -347,13 +366,8 @@ const toggleTask = async (task) => {
     return
   }
 
-  // 未完成的任务：单次任务已完成不可重复打卡；坏习惯一天只记一次
-  if (task.category !== 'bad_habit') {
-    if (isSingle && count >= 1) return
-    if (!isSingle && !isCumulative && count >= task.target_count) return
-  } else if (count >= 1) {
-    return
-  }
+  // 坏习惯一天只记一次
+  if (task.category === 'bad_habit' && count >= 1) return
 
   // 坏习惯需要确认
   if (task.category === 'bad_habit') {
@@ -772,5 +786,24 @@ onMounted(() => {
 
 .modal-actions .btn {
   flex: 1;
+}
+
+.count-minus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #FFEBEE;
+  color: #E53935;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.count-minus:hover {
+  background: #FFCDD2;
 }
 </style>

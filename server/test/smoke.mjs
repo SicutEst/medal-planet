@@ -104,6 +104,10 @@ let taskId, badTaskId, quotaTaskId;
   for (let i = 0; i < 3; i++) {
     await api('POST', `/task/${quotaTaskId}/complete`, { token: childToken, body: {} });
   }
+  // 递减一次（纠错）后再补回
+  const dec = await api('POST', `/task/${quotaTaskId}/uncomplete`, { token: childToken, body: { count: 1 } });
+  check('多计数任务递减一次成功', dec.data?.success === true && dec.data.countToday === 2, '实际=' + JSON.stringify(dec.data));
+  await api('POST', `/task/${quotaTaskId}/complete`, { token: childToken, body: {} });
   const today = await api('GET', `/task/family/${ids.familyId}/today`, { token: childToken });
   const qt = today.data.tasks.find(t => t.id === quotaTaskId);
   check('达标型任务累计 3/3', qt && (qt.completed_count || 0) === 3, '实际=' + JSON.stringify(qt?.completed_count));

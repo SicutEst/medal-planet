@@ -447,7 +447,8 @@ router.post('/:id/uncomplete', async (req, res) => {
   try {
     const { id } = req.params;
     const memberId = req.member.id;
-    const { date } = req.body;
+    // body.count = 1 表示多计数任务递减一次；缺省为整条取消
+    const { date, count } = req.body;
     const targetDate = date || getLocalDateString();
 
     const check = await getFamilyTask(req, id);
@@ -467,6 +468,25 @@ router.post('/:id/uncomplete', async (req, res) => {
     );
     if (appResult.rows.length > 0) {
       return res.status(409).json({ success: false, error: '该任务已提交审批，不能取消打卡' });
+    }
+
+    if (count === 1) {
+      // 多计数任务：递减一次，减到 0 删除记录
+      const rowRes = await pool.query(
+        `SELECT id, count_today FROM task_completions
+         WHERE task_id = $1 AND member_id = $2 AND completed_date = $3 AND is_subsidy = false`,
+        [id, memberId, targetDate]
+      );
+      if (rowRes.rows.length === 0) {
+        return res.status(404).json({ success: false, error: '今日没有该任务的打卡记录' });
+      }
+      const newCount = (rowRes.rows[0].count_today || 0) - 1;
+      if (newCount <= 0) {
+        await pool.query('DELETE FROM task_completions WHERE id = $1', [rowRes.rows[0].id]);
+      } else {
+        await pool.query('UPDATE task_completions SET count_today = $1 WHERE id = $2', [newCount, rowRes.rows[0].id]);
+      }
+      return res.json({ success: true, message: '已减少一次打卡', countToday: Math.max(0, newCount) });
     }
 
     const del = await pool.query(
