@@ -9,11 +9,11 @@
     <!-- 第一步：选择家庭 -->
     <div v-if="step === 1" class="login-form card fade-in">
       <div class="form-group">
-        <label>我的家庭</label>
-        
+        <label>{{ recentFamilies.length > 0 ? '我的家庭' : '加入家庭' }}</label>
+
         <div v-if="recentFamilies.length > 0" class="recent-list">
-          <div 
-            v-for="f in recentFamilies" 
+          <div
+            v-for="f in recentFamilies"
             :key="f.familyId"
             class="recent-item"
             @click="selectRecentFamily(f)"
@@ -27,26 +27,26 @@
           </div>
         </div>
 
-        <button class="btn btn-secondary switch-btn" @click="showFamilyInput = !showFamilyInput">
+        <button v-if="recentFamilies.length > 0" class="btn btn-secondary switch-btn" @click="showFamilyInput = !showFamilyInput">
           {{ showFamilyInput ? '取消' : '🔄 切换家庭 / 输入家庭码' }}
         </button>
 
-        <div v-if="showFamilyInput" class="family-input-section">
+        <div v-if="showFamilyInput || recentFamilies.length === 0" class="family-input-section">
           <div class="form-group">
             <label>家庭码</label>
-            <input 
-              v-model="familyCodeInput" 
-              type="text" 
-              class="input family-code-input" 
-              placeholder="输入7位家庭码" 
+            <input
+              v-model="familyCodeInput"
+              type="text"
+              class="input family-code-input"
+              placeholder="输入7位家庭码"
               maxlength="7"
               @keyup.enter="lookupFamily"
             >
           </div>
-          <button 
-            class="btn btn-primary" 
-            style="width: 100%" 
-            @click="lookupFamily" 
+          <button
+            class="btn btn-primary"
+            style="width: 100%"
+            @click="lookupFamily"
             :disabled="lookupLoading || familyCodeInput.length < 4"
           >
             {{ lookupLoading ? '查询中...' : '查找家庭' }}
@@ -454,8 +454,34 @@ const doJoin = async () => {
   }
 }
 
+// 静默校验最近家庭列表：已解散/不存在的家庭（404）自动移除；
+// 网络错误等临时故障不清除，避免误删。列表清空后自动展开家庭码输入。
+const validateRecentFamilies = async () => {
+  if (recentFamilies.value.length === 0) {
+    showFamilyInput.value = true
+    return
+  }
+  const results = await Promise.allSettled(
+    recentFamilies.value.map(f => authStore.lookupFamily(f.familyCode))
+  )
+  let removed = false
+  results.forEach((r, i) => {
+    if (r.status === 'rejected' && r.reason?.response?.status === 404) {
+      authStore.removeRecentFamily(recentFamilies.value[i].familyId)
+      removed = true
+    }
+  })
+  if (removed) {
+    recentFamilies.value = authStore.getRecentFamilies()
+  }
+  if (recentFamilies.value.length === 0) {
+    showFamilyInput.value = true
+  }
+}
+
 onMounted(() => {
   recentFamilies.value = authStore.getRecentFamilies()
+  validateRecentFamilies()
   // 检查 URL 中是否有邀请码（从邀请链接跳转来）
   const params = new URLSearchParams(window.location.search)
   const code = params.get('code')
