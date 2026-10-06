@@ -64,25 +64,25 @@
           }">
             <span v-if="isTaskDone(task)">{{ task.category === 'bad_habit' ? '✗' : '✓' }}</span>
           </div>
-          <div class="task-name">
-            {{ task.name }}
-            <span v-if="task.category === 'bad_habit'" class="tag tag-warn">坏习惯</span>
-            <span v-else-if="task.category === 'temporary'" class="tag tag-todo">待办</span>
-            <template v-if="task.target_count > 1">
+          <div class="task-main">
+            <div class="task-name">
+              {{ task.name }}
+              <span v-if="task.category === 'bad_habit'" class="tag tag-warn">坏习惯</span>
+              <span v-else-if="task.category === 'temporary'" class="tag tag-todo">待办</span>
+            </div>
+            <div v-if="task.target_count > 1" class="mt-progress" :title="'目标 ' + task.target_count + ' 次：每完成一次点一下整行计数；底部「提交今日完成」按次数 × 单次奖励等待审批'">
+              <div class="mt-bar">
+                <div class="mt-fill" :style="{ width: Math.min(100, (task.count_today || 0) / task.target_count * 100) + '%' }"></div>
+              </div>
+              <span class="mt-text">{{ task.count_today || 0 }}/{{ task.target_count }}</span>
+              <span v-if="(task.pending_count || 0) > 0" class="mt-pending">待审{{ task.pending_count }}</span>
               <span
                 v-if="zOf(task) > 0"
                 class="count-minus"
                 title="减一次（只影响未提交的计数）"
                 @click.stop="decrementTask(task)"
               >－</span>
-              <span
-                class="tag tag-gold"
-                :title="'目标 ' + task.target_count + ' 次：每完成一次点一下整行计数；点底部「提交今日完成」后按次数 × 单次奖励等待审批'"
-              >
-                {{ task.count_today || 0 }}/{{ task.target_count }}
-              </span>
-            </template>
-            <span v-if="(task.pending_count || 0) > 0" class="tag-sky">待审 {{ task.pending_count }}</span>
+            </div>
           </div>
           <div class="reward" :class="{ penalty: task.category === 'bad_habit' }">
             {{ task.category === 'bad_habit' ? '-' : '+' }}{{ task.sticker_reward }} 🎟️
@@ -446,12 +446,25 @@ onMounted(() => {
 .balance-card {
   display: flex;
   justify-content: space-around;
-  align-items: center;
-  padding: 20px;
+  align-items: stretch;
+  gap: 10px;
+  padding: 16px;
 }
 
 .balance-item {
   text-align: center;
+  flex: 1;
+  border-radius: 16px;
+  padding: 14px 8px 12px;
+}
+
+/* 贴纸筹码（奶油黄）/ 粉球筹码（软紫） */
+.balance-item:first-child {
+  background: var(--secondary-light);
+}
+
+.balance-item:last-child {
+  background: var(--purple-light);
 }
 
 .balance-item .icon {
@@ -462,6 +475,7 @@ onMounted(() => {
 .balance-item .value {
   font-size: 32px;
   font-weight: 700;
+  font-family: var(--font-display);
 }
 
 .balance-item .label {
@@ -471,14 +485,12 @@ onMounted(() => {
 
 .balance-item .progress-tip {
   font-size: 11px;
-  opacity: 0.8;
+  color: #8A7C5E;
   margin-top: 4px;
 }
 
 .balance-divider {
-  width: 1px;
-  height: 60px;
-  background: rgba(255,255,255,0.3);
+  display: none;
 }
 
 .section-header {
@@ -758,19 +770,66 @@ onMounted(() => {
   flex: 1;
 }
 
+.task-main {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 多计数任务进度条 */
+.mt-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.mt-bar {
+  flex: 1;
+  height: 10px;
+  background: var(--line);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.mt-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 5px;
+  transition: width 0.25s ease;
+}
+
+.mt-text {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary-dark);
+  font-family: var(--font-display);
+  white-space: nowrap;
+}
+
+.mt-pending {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6F5BD6;
+  background: var(--purple-light);
+  padding: 2px 8px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
 .count-minus {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
-  background: #FFEBEE;
-  color: #E53935;
+  background: var(--coral-light);
+  color: #D6553F;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   user-select: none;
+  flex-shrink: 0;
 }
 
 .count-minus:hover {

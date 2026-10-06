@@ -1,19 +1,31 @@
-/* 奖章星球 - 可爱卡通风格 */
+/* 奖章星球 - "奶油星球"设计系统
+   暖奶油底 + 薄荷青主色 + 奶油黄/珊瑚点缀，
+   立体按压式按钮（厚底边），圆润但克制，可爱不俗气 */
 :root {
-  --primary: #FF6B9D;
-  --primary-light: #FFB6C8;
-  --primary-dark: #E91E63;
-  --secondary: #FFD93D;
-  --accent: #6BCB77;
-  --purple: #9B59B6;
-  --sky: #74B9FF;
-  --bg: #FFF5F8;
+  --primary: #2FB8AC;          /* 薄荷青 */
+  --primary-light: #DDF3F0;    /* 极浅薄荷（背景/徽标底） */
+  --primary-dark: #1E8A80;     /* 深薄荷（文字/按钮底边） */
+  --secondary: #FFD166;        /* 奶油黄 */
+  --secondary-light: #FFF4D6;
+  --accent: #58C472;           /* 草地绿（成功） */
+  --accent-light: #E4F6E9;
+  --coral: #FF7B6B;            /* 珊瑚（惩罚/警示，代替正红） */
+  --coral-light: #FFE9E5;
+  --purple: #9D8CFF;           /* 软紫（粉球） */
+  --purple-light: #EFEBFF;
+  --sky: #74C0FF;
+  --sky-light: #E7F4FF;
+  --gold: #F5A623;
+  --bg: #FAF6EE;               /* 暖奶油底 */
   --card-bg: #FFFFFF;
-  --text: #2D3436;
-  --text-light: #636E72;
-  --shadow: 0 4px 20px rgba(255, 107, 157, 0.15);
-  --radius: 16px;
-  --radius-sm: 8px;
+  --text: #3A3F45;
+  --text-light: #9AA0A8;
+  --line: #F0E9DC;
+  --shadow: 0 6px 18px rgba(186, 156, 106, 0.10);
+  --shadow-lift: 0 10px 24px rgba(186, 156, 106, 0.16);
+  --radius: 20px;
+  --radius-sm: 14px;
+  --font-display: 'ZCOOL KuaiLe', 'Noto Sans SC', -apple-system, sans-serif;
 }
 
 * {
@@ -30,78 +42,109 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* 通用按钮 */
+/* ---------- 通用按钮：厚底边立体按压 ---------- */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px 24px;
+  padding: 13px 24px;
   border: none;
-  border-radius: var(--radius);
+  border-radius: 16px;
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: transform 0.08s ease, filter 0.15s ease;
+}
+
+.btn:active {
+  transform: translateY(2px);
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  background: var(--primary);
   color: white;
-  box-shadow: 0 4px 15px rgba(255, 107, 157, 0.4);
+  box-shadow: 0 4px 0 var(--primary-dark);
 }
 
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(255, 107, 157, 0.5);
-}
+.btn-primary:hover { filter: brightness(1.05); }
+.btn-primary:active { box-shadow: 0 2px 0 var(--primary-dark); }
+.btn-primary:disabled { background: #C6CDD4; box-shadow: 0 4px 0 #A9B1B9; }
 
 .btn-secondary {
   background: white;
-  color: var(--primary);
-  border: 2px solid var(--primary);
+  color: var(--primary-dark);
+  box-shadow: 0 4px 0 var(--line);
+  border: 2px solid var(--line);
 }
+
+.btn-secondary:active { box-shadow: 0 2px 0 var(--line); }
 
 .btn-success {
-  background: linear-gradient(135deg, var(--accent), #4CAF50);
+  background: var(--accent);
   color: white;
+  box-shadow: 0 4px 0 #3FA35A;
 }
 
+.btn-success:active { box-shadow: 0 2px 0 #3FA35A; }
+
 .btn-warning {
-  background: linear-gradient(135deg, var(--secondary), #FFB800);
-  color: var(--text);
+  background: var(--secondary);
+  color: #8A6D1F;
+  box-shadow: 0 4px 0 #E5B84E;
 }
+
+.btn-warning:active { box-shadow: 0 2px 0 #E5B84E; }
+
+.btn-danger {
+  background: var(--coral);
+  color: white;
+  box-shadow: 0 4px 0 #E05A48;
+}
+
+.btn-danger:active { box-shadow: 0 2px 0 #E05A48; }
 
 .btn-sm {
   padding: 8px 16px;
   font-size: 14px;
+  border-radius: 12px;
 }
 
-/* 卡片 */
+.btn-link {
+  background: none;
+  box-shadow: none;
+  color: var(--primary-dark);
+  text-decoration: underline;
+  padding: 8px;
+}
+
+/* ---------- 卡片 ---------- */
 .card {
   background: var(--card-bg);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 20px;
   margin-bottom: 16px;
+  border: 2px solid var(--line);
 }
 
-/* 输入框 */
+/* ---------- 输入框 ---------- */
 .input {
   width: 100%;
   padding: 14px 16px;
-  border: 2px solid #E8E8E8;
+  border: 2px solid var(--line);
   border-radius: var(--radius-sm);
   font-size: 16px;
-  transition: border-color 0.2s;
+  background: #FDFBF6;
+  transition: border-color 0.2s, background 0.2s;
 }
 
 .input:focus {
   outline: none;
   border-color: var(--primary);
+  background: white;
 }
 
-/* 隐藏 number 输入框的上下箭头 */
 .input[type="number"]::-webkit-outer-spin-button,
 .input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
@@ -112,54 +155,86 @@ body {
   -moz-appearance: textfield;
 }
 
-/* 标签 */
+/* ---------- 标签：统一马卡龙色系 ---------- */
 .tag {
   display: inline-flex;
   align-items: center;
   padding: 4px 12px;
   border-radius: 20px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
-.tag-star { background: #FFF3E0; color: #FF9800; }
-.tag-sky { background: #E3F2FD; color: #2196F3; }
-.tag-purple { background: #F3E5F5; color: #9C27B0; }
-.tag-green { background: #E8F5E9; color: #4CAF50; }
+.tag-gold { background: var(--secondary-light); color: #B07E14; }
+.tag-sky { background: var(--sky-light); color: #2B7FC4; }
+.tag-purple { background: var(--purple-light); color: #6F5BD6; }
+.tag-green { background: var(--accent-light); color: #3E9E55; }
+.tag-red { background: var(--coral-light); color: #D6553F; }
+.tag-warn { background: var(--secondary-light); color: #B07E14; }
 
-/* 页面容器 */
+/* ---------- 页面容器 ---------- */
 .page {
   max-width: 480px;
   margin: 0 auto;
   padding: 16px;
-  padding-bottom: 80px;
+  padding-bottom: 88px;
 }
 
-/* 头部 */
+/* ---------- 头部：柔和纯色 + 圆点装饰 ---------- */
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px;
-  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  padding: 18px 20px;
+  background: var(--primary);
   color: white;
-  border-radius: 0 0 var(--radius) var(--radius);
+  border-radius: var(--radius);
   margin-bottom: 20px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 0 var(--primary-dark);
+}
+
+/* 圆点装饰（气泡感） */
+.header::before,
+.header::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.header::before {
+  width: 90px;
+  height: 90px;
+  top: -36px;
+  right: -20px;
+}
+
+.header::after {
+  width: 46px;
+  height: 46px;
+  bottom: -18px;
+  left: 30%;
 }
 
 .header h1 {
-  font-size: 20px;
+  font-size: 21px;
   font-weight: 700;
+  font-family: var(--font-display);
+  letter-spacing: 1px;
 }
 
-/* 余额卡片 */
+/* ---------- 余额卡片 ---------- */
 .balance-card {
-  background: linear-gradient(135deg, var(--primary), #FF8A80);
+  background: var(--card-bg);
   border-radius: var(--radius);
-  padding: 24px;
-  color: white;
+  padding: 20px;
+  color: var(--text);
   text-align: center;
   margin-bottom: 20px;
+  border: 2px solid var(--line);
+  box-shadow: var(--shadow);
 }
 
 .balance-card .sticker {
@@ -170,62 +245,77 @@ body {
 .balance-card .value {
   font-size: 36px;
   font-weight: 700;
+  font-family: var(--font-display);
 }
 
 .balance-card .label {
-  opacity: 0.9;
+  color: var(--text-light);
   font-size: 14px;
 }
 
-/* 任务项 */
+/* ---------- 任务项 ---------- */
 .task-item {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 16px;
   background: white;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   margin-bottom: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  border: 2px solid var(--line);
+  transition: transform 0.08s ease;
+}
+
+.task-item:active {
+  transform: scale(0.99);
 }
 
 .task-item.completed {
-  opacity: 0.6;
-  background: #F5F5F5;
+  opacity: 0.62;
+  background: #FAF7F0;
 }
 
 .task-item .checkbox {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 3px solid var(--primary);
+  border: 3px solid #D8D2C4;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  flex-shrink: 0;
+  transition: all 0.15s;
 }
 
 .task-item .checkbox.checked {
-  background: var(--primary);
+  background: var(--accent);
+  border-color: var(--accent);
   color: white;
 }
 
 .task-item .task-name {
   flex: 1;
   font-weight: 500;
+  line-height: 1.5;
 }
 
 .task-item .reward {
-  background: var(--primary-light);
-  color: var(--primary-dark);
+  background: var(--secondary-light);
+  color: #8A6D1F;
   padding: 4px 12px;
   border-radius: 20px;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
-/* 底部导航 */
+.task-item .reward.penalty {
+  background: var(--coral-light);
+  color: #D6553F;
+}
+
+/* ---------- 底部导航 ---------- */
 .tab-bar {
   position: fixed;
   bottom: 0;
@@ -234,10 +324,11 @@ body {
   display: flex;
   justify-content: space-around;
   background: white;
-  padding: 12px 0;
-  box-shadow: 0 -2px 20px rgba(0,0,0,0.1);
+  padding: 10px 0 14px;
+  box-shadow: 0 -4px 20px rgba(186, 156, 106, 0.12);
   border-radius: var(--radius) var(--radius) 0 0;
   z-index: 100;
+  border-top: 2px solid var(--line);
 }
 
 .tab-item {
@@ -248,24 +339,33 @@ body {
   color: var(--text-light);
   text-decoration: none;
   font-size: 12px;
-  transition: color 0.2s;
+  font-weight: 600;
+  transition: color 0.2s, transform 0.1s;
 }
 
 .tab-item.active {
-  color: var(--primary);
+  color: var(--primary-dark);
+  transform: translateY(-2px);
+}
+
+.tab-item.active .icon {
+  background: var(--primary-light);
+  border-radius: 12px;
+  padding: 2px 10px;
 }
 
 .tab-item .icon {
-  font-size: 24px;
+  font-size: 22px;
 }
 
-/* 审批卡片 */
+/* ---------- 审批卡片 ---------- */
 .application-card {
   background: white;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   padding: 16px;
   margin-bottom: 12px;
-  border-left: 4px solid var(--primary);
+  border: 2px solid var(--line);
+  border-left: 6px solid var(--primary);
 }
 
 .application-card .header {
@@ -275,7 +375,7 @@ body {
 }
 
 .application-card .applicant {
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .application-card .reason {
@@ -289,7 +389,7 @@ body {
   gap: 12px;
 }
 
-/* 空状态 */
+/* ---------- 空状态 ---------- */
 .empty-state {
   text-align: center;
   padding: 40px;
@@ -299,9 +399,10 @@ body {
 .empty-state .icon {
   font-size: 64px;
   margin-bottom: 16px;
+  filter: saturate(0.8);
 }
 
-/* 动画 */
+/* ---------- 动画 ---------- */
 @keyframes bounce {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-10px); }
@@ -316,7 +417,7 @@ body {
   animation: fadeIn 0.3s ease;
 }
 
-/* 加载状态 */
+/* ---------- 加载状态 ---------- */
 .loading {
   display: flex;
   justify-content: center;
@@ -334,4 +435,51 @@ body {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* ---------- 弹窗 ---------- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(58, 63, 69, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: white;
+  border-radius: var(--radius);
+  padding: 24px;
+  max-width: 360px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  border: 2px solid var(--line);
+}
+
+.modal-title {
+  font-size: 19px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  font-family: var(--font-display);
+}
+
+.error {
+  color: var(--coral);
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+.hint {
+  color: var(--text-light);
+  font-size: 14px;
+  text-align: center;
+  margin-top: 16px;
+}
+
+.link {
+  color: var(--primary-dark);
+  font-weight: 600;
 }

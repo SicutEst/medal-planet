@@ -525,7 +525,10 @@ onMounted(() => {
 <style scoped>
 .login-page {
   min-height: 100vh;
-  background: linear-gradient(180deg, var(--primary-light) 0%, var(--bg) 100%);
+  background:
+    radial-gradient(circle at 20% 8%, var(--primary-light) 0%, transparent 32%),
+    radial-gradient(circle at 85% 16%, var(--secondary-light) 0%, transparent 30%),
+    var(--bg);
   padding: 40px 20px;
 }
 
