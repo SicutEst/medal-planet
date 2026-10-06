@@ -82,8 +82,10 @@ export const useAuthStore = defineStore('auth', () => {
       const seen = new Set()
       const deduped = []
       for (const f of raw) {
-        if (f.familyId && !seen.has(f.familyId)) {
-          seen.add(f.familyId)
+        // 按家庭码判重：内部 id 可能因测试残留/换库而不一致，家庭码才是唯一键
+        const key = f.familyCode || f.familyId
+        if (f.familyId && key && !seen.has(key)) {
+          seen.add(key)
           deduped.push(f)
         }
       }
@@ -98,10 +100,12 @@ export const useAuthStore = defineStore('auth', () => {
 
   function saveRecentFamily(familyData, memberData) {
     const recents = getRecentFamilies()
-    const idx = recents.findIndex(f => f.familyId === familyData.id)
+    const code = familyData.code || familyData.family_code
+    // 按家庭码定位旧条目（同码视为同一家庭，覆盖而不是新增）
+    const idx = recents.findIndex(f => (f.familyCode || f.familyId) === code)
     const entry = {
       familyId: familyData.id,
-      familyCode: familyData.code || familyData.family_code,
+      familyCode: code,
       familyName: familyData.name,
       memberId: memberData?.id,
       memberName: memberData?.name,
