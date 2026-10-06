@@ -1,5 +1,5 @@
 <template>
-  <span class="avatar-wrap" :style="{ width: size + 'px', height: size + 'px', fontSize: Math.round(size * 0.6) + 'px' }">
+  <span class="avatar-wrap" :style="{ width: size + 'px', height: size + 'px', fontSize: Math.round(size * 0.85) + 'px' }">
     <img v-if="isImg" :src="avatarSrc(avatar)" alt="" draggable="false">
     <template v-else-if="avatar">{{ avatar }}</template>
     <template v-else>{{ fallbackEmoji }}</template>

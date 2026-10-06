@@ -80,9 +80,12 @@
               <div class="member-role">{{ member.role === 'parent' ? '家长' : '孩子' }}</div>
             </div>
           </div>
-          <div class="member-stats">
+          <div class="member-stats" v-if="member.role !== 'parent'">
             <span>{{ cur[0] }} {{ member.current_stickers }}</span>
             <span>{{ cur[1] }} {{ member.current_balls }}</span>
+          </div>
+          <div class="member-stats" v-else>
+            <span class="member-nocur">不参与攒奖</span>
           </div>
         </div>
       </div>
@@ -478,6 +481,11 @@ onMounted(() => {
   display: flex;
   gap: 12px;
   font-size: 14px;
+}
+
+.member-nocur {
+  font-size: 12px;
+  color: var(--text-light);
 }
 
 .adjust-form {
