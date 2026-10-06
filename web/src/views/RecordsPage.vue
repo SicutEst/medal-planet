@@ -486,7 +486,7 @@ onMounted(() => {
 }
 
 .stat-card {
-  background: white;
+  background: var(--card-bg);
   border-radius: var(--radius);
   padding: 16px;
   text-align: center;
@@ -556,10 +556,10 @@ onMounted(() => {
   width: 14px;
   height: 14px;
   border-radius: 3px;
-  background: #EBEDF0;
+  background: var(--line);
 }
 
-.heatmap-cell.level-0 { background: #EBEDF0; }
+.heatmap-cell.level-0 { background: var(--line); }
 .heatmap-cell.level-1 { background: #C6E48B; }
 .heatmap-cell.level-2 { background: #7BC96F; }
 .heatmap-cell.level-3 { background: #239A3B; }
@@ -585,7 +585,7 @@ onMounted(() => {
   justify-content: space-around;
   margin-top: 12px;
   padding: 10px;
-  background: #F8F9FA;
+  background: var(--bg);
   border-radius: var(--radius-sm);
   font-size: 13px;
   color: var(--text);
@@ -632,7 +632,7 @@ onMounted(() => {
 .report-item {
   text-align: center;
   padding: 10px 4px;
-  background: #F8F9FA;
+  background: var(--bg);
   border-radius: var(--radius-sm);
 }
 
@@ -644,7 +644,7 @@ onMounted(() => {
 
 .report-label {
   font-size: 11px;
-  color: var(--text-light);
+  color: #5F6B7A;
   margin-bottom: 4px;
 }
 
@@ -653,11 +653,11 @@ onMounted(() => {
   font-weight: 700;
 }
 
-.report-item.positive .report-value { color: #4CAF50; }
-.report-item.negative .report-value { color: #E53935; }
-.report-item.subsidy .report-value { color: #2196F3; }
-.report-item.net .report-value { color: #FF9800; }
-.report-item.guaranteed .report-value { color: #9C27B0; }
+.report-item.positive .report-value { color: #1B5E20; }
+.report-item.negative .report-value { color: #A81818; }
+.report-item.subsidy .report-value { color: #1565C0; }
+.report-item.net .report-value { color: #82600F; }
+.report-item.guaranteed .report-value { color: #7B1FA2; }
 
 /* 分类统计 */
 .category-list {
@@ -681,7 +681,7 @@ onMounted(() => {
 .cat-bar-bg {
   flex: 1;
   height: 12px;
-  background: #F0F0F0;
+  background: var(--bg);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -711,7 +711,7 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   padding: 8px;
-  background: #FAFAFA;
+  background: var(--bg);
   border-radius: var(--radius-sm);
 }
 
@@ -728,10 +728,10 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
-.rank-1 { background: #FFD700; }
-.rank-2 { background: #C0C0C0; }
-.rank-3 { background: #CD7F32; }
-.rank:not(.rank-1):not(.rank-2):not(.rank-3) { background: #BBB; }
+.rank-1 { background: #FFD700; color: #7A5C00; }
+.rank-2 { background: #C0C0C0; color: #4A4A4A; }
+.rank-3 { background: #CD7F32; color: #3F2A0E; }
+.rank:not(.rank-1):not(.rank-2):not(.rank-3) { background: #BBB; color: #3F3F3F; }
 
 .top-task-item .task-name {
   flex: 1;
@@ -743,7 +743,7 @@ onMounted(() => {
   font-size: 11px;
   color: var(--text-light);
   padding: 2px 6px;
-  background: #F0F0F0;
+  background: var(--bg);
   border-radius: 8px;
 }
 
@@ -795,7 +795,7 @@ onMounted(() => {
 
 .trend-value {
   font-size: 9px;
-  color: white;
+  color: #5F6B7A;
   padding: 2px;
 }
 
@@ -811,8 +811,8 @@ onMounted(() => {
   margin-top: 2px;
 }
 
-.trend-net.positive { color: #4CAF50; }
-.trend-net.negative { color: #E53935; }
+.trend-net.positive { color: #1B5E20; }
+.trend-net.negative { color: #C62828; }
 
 .trend-legend {
   display: flex;
@@ -903,11 +903,11 @@ onMounted(() => {
   margin-right: 8px;
 }
 
-.log-type.earn { background: #E8F5E9; color: #4CAF50; }
-.log-type.penalty { background: #FFEBEE; color: #F44336; }
-.log-type.adjust { background: #E3F2FD; color: #2196F3; }
-.log-type.subsidy { background: #FFF3E0; color: #FF9800; }
-.log-type.convert { background: #F3E5F5; color: #9C27B0; }
+.log-type.earn { background: #E8F5E9; color: #1B5E20; }
+.log-type.penalty { background: #FFEBEE; color: #C62828; }
+.log-type.adjust { background: #E3F2FD; color: #1565C0; }
+.log-type.subsidy { background: #FFF3E0; color: #82600F; }
+.log-type.convert { background: #F3E5F5; color: #7B1FA2; }
 
 .log-task, .log-remark {
   font-size: 14px;
@@ -922,8 +922,8 @@ onMounted(() => {
 .log-change.earn { color: var(--accent); }
 .log-change.penalty { color: #FF6B6B; }
 .log-change.adjust { color: var(--sky); }
-.log-change.subsidy { color: #FF9800; }
-.log-change.convert { color: #9C27B0; }
+.log-change.subsidy { color: #82600F; }
+.log-change.convert { color: #7B1FA2; }
 
 .log-balance {
   font-size: 12px;

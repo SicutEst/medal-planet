@@ -576,7 +576,7 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   padding: 16px 8px;
-  background: white;
+  background: var(--card-bg);
   border-radius: var(--radius);
   text-decoration: none;
   color: var(--text);
@@ -604,7 +604,7 @@ onMounted(() => {
   align-items: center;
   gap: 12px;
   padding: 14px 16px;
-  background: linear-gradient(135deg, #FFF9E6, #FFF3E0);
+  background: var(--secondary-light);
   border-radius: var(--radius);
   margin-top: 16px;
   cursor: pointer;
@@ -618,11 +618,11 @@ onMounted(() => {
 .subsidy-banner span:nth-child(2) {
   flex: 1;
   font-weight: 600;
-  color: #E65100;
+  color: var(--text);
 }
 
 .subsidy-banner .arrow {
-  color: #FF9800;
+  color: #82600F;
   font-weight: bold;
 }
 
@@ -632,7 +632,7 @@ onMounted(() => {
 }
 
 .task-item.bad-habit {
-  background: #FFF8F8;
+  background: var(--coral-light);
   border: 1px solid #FFCDD2;
 }
 
@@ -649,8 +649,8 @@ onMounted(() => {
 }
 
 .tag-warn {
-  background: #FFF3E0;
-  color: #FF9800;
+  background: var(--secondary-light);
+  color: #82600F;
   font-size: 11px;
   padding: 2px 8px;
   border-radius: 10px;
@@ -659,7 +659,7 @@ onMounted(() => {
 
 /* 待办任务样式 */
 .task-item.todo-task {
-  background: #FFFDE7;
+  background: var(--secondary-light);
   border: 1px solid #FFF59D;
 }
 
@@ -677,7 +677,7 @@ onMounted(() => {
 
 .tag-todo {
   background: #FFF8E1;
-  color: #F57C00;
+  color: #82600F;
   font-size: 11px;
   padding: 2px 8px;
   border-radius: 10px;
@@ -685,7 +685,7 @@ onMounted(() => {
 }
 
 .reward.penalty {
-  background: #FFEBEE !important;
+  background: var(--coral-light) !important;
   color: #E53935 !important;
 }
 
@@ -699,7 +699,7 @@ onMounted(() => {
 .date-selector button {
   padding: 8px 12px;
   border: 2px solid #E8E8E8;
-  background: white;
+  background: var(--card-bg);
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 14px;
@@ -732,7 +732,7 @@ onMounted(() => {
 }
 
 .modal {
-  background: white;
+  background: var(--card-bg);
   border-radius: var(--radius);
   padding: 24px;
   max-width: 360px;
@@ -813,7 +813,7 @@ onMounted(() => {
 .mt-pending {
   font-size: 11px;
   font-weight: 700;
-  color: #6F5BD6;
+  color: #5B49C0;
   background: var(--purple-light);
   padding: 2px 8px;
   border-radius: 8px;
@@ -828,7 +828,7 @@ onMounted(() => {
   height: 22px;
   border-radius: 50%;
   background: var(--coral-light);
-  color: #D6553F;
+  color: #C0392B;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
@@ -842,7 +842,7 @@ onMounted(() => {
 
 .tag-sky {
   background: #E3F2FD;
-  color: #1976D2;
+  color: #1565C0;
   font-size: 11px;
   padding: 2px 8px;
   border-radius: 10px;

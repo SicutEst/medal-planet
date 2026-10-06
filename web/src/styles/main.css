@@ -19,7 +19,7 @@
   --bg: #FAF6EE;               /* 暖奶油底 */
   --card-bg: #FFFFFF;
   --text: #3A3F45;
-  --text-light: #9AA0A8;
+  --text-light: #6B7280;
   --line: #F0E9DC;
   --shadow: 0 6px 18px rgba(186, 156, 106, 0.10);
   --shadow-lift: 0 10px 24px rgba(186, 156, 106, 0.16);
@@ -69,7 +69,7 @@ body {
 
 .btn-primary:hover { filter: brightness(1.05); }
 .btn-primary:active { box-shadow: 0 2px 0 var(--primary-dark); }
-.btn-primary:disabled { background: #C6CDD4; box-shadow: 0 4px 0 #A9B1B9; }
+.btn-primary:disabled { background: #C6CDD4; color: #4A525B; box-shadow: 0 4px 0 #A9B1B9; }
 
 .btn-secondary {
   background: var(--card-bg);
@@ -165,12 +165,12 @@ body {
   font-weight: 600;
 }
 
-.tag-gold { background: var(--secondary-light); color: #B07E14; }
-.tag-sky { background: var(--sky-light); color: #2B7FC4; }
-.tag-purple { background: var(--purple-light); color: #6F5BD6; }
-.tag-green { background: var(--accent-light); color: #3E9E55; }
-.tag-red { background: var(--coral-light); color: #D6553F; }
-.tag-warn { background: var(--secondary-light); color: #B07E14; }
+.tag-gold { background: #FFF8E1; color: #82600F; }
+.tag-sky { background: #E3F2FD; color: #1565C0; }
+.tag-purple { background: #F3E5F5; color: #5B49C0; }
+.tag-green { background: #E8F5E9; color: #1B5E20; }
+.tag-red { background: #FFEBEE; color: #C62828; }
+.tag-warn { background: #FFF3E0; color: #82600F; }
 
 /* ---------- 页面容器 ---------- */
 .page {
@@ -302,7 +302,7 @@ body {
 
 .task-item .reward {
   background: var(--secondary-light);
-  color: #8A6D1F;
+  color: #7E6319;
   padding: 4px 12px;
   border-radius: 20px;
   font-size: 14px;
@@ -505,7 +505,7 @@ html[data-theme='minecraft'] {
   --sky-light: #DCEEF7;
   --bg: #EFEAC8;
   --text: #2E2A1F;
-  --text-light: #8A8468;
+  --text-light: #6B6350;
   --line: #D8CFA8;
   --radius: 4px;
   --radius-sm: 2px;
@@ -558,7 +558,7 @@ html[data-theme='duo'] {
   --sky-light: #DDF1FF;
   --bg: #F4FBF4;
   --text: #3C3C3C;
-  --text-light: #9AA8B1;
+  --text-light: #5F6E80;
   --line: #E5F0DF;
   --radius: 16px;
   --radius-sm: 12px;
@@ -582,7 +582,7 @@ html[data-theme='eggy'] {
   --sky-light: #E7F4FF;
   --bg: #FFF7F0;
   --text: #4A3F44;
-  --text-light: #B0A3AB;
+  --text-light: #7A6E75;
   --line: #F5E4DC;
   --radius: 28px;
   --radius-sm: 20px;
@@ -624,7 +624,7 @@ html[data-theme='mario'] {
   --sky-light: #DCF1FA;
   --bg: #FFF8E7;
   --text: #3B3020;
-  --text-light: #A6977E;
+  --text-light: #6E6355;
   --line: #EBDDBB;
   --radius: 14px;
   --radius-sm: 10px;
@@ -659,7 +659,7 @@ html[data-theme='sonic'] {
   --sky-light: #DCF2FB;
   --bg: #F0F6FF;
   --text: #22314A;
-  --text-light: #8B9BB4;
+  --text-light: #5C6B85;
   --line: #DCE7F5;
   --radius: 12px;
   --radius-sm: 8px;
@@ -679,7 +679,8 @@ html[data-theme='sonic'] .header {
 html[data-theme='space'] {
   --primary: #6C8CFF;
   --primary-light: #2A3663;
-  --primary-dark: #4A63D6;
+  /* 夜间模式下 -dark 系角色反转：作为深底上的文字/勾选色，必须是亮色 */
+  --primary-dark: #A9BCFF;
   --secondary: #FFD166;
   --secondary-light: #3A3660;
   --accent: #58C472;
@@ -720,15 +721,19 @@ html[data-theme='space'] .task-item.completed {
 }
 
 /* 夜间模式下，浅色系徽章/标签的底色是深色，文字必须换成亮色以保证对比度 */
-html[data-theme='space'] .tag-gold,
-html[data-theme='space'] .tag-warn { color: #FFD98A; }
-html[data-theme='space'] .tag-sky { color: #9CCBFF; }
-html[data-theme='space'] .tag-purple { color: #C5B8FF; }
-html[data-theme='space'] .tag-green { color: #93E2AC; }
-html[data-theme='space'] .tag-red { color: #FFA899; }
-html[data-theme='space'] .tag-orange { color: #FFC59E; }
 html[data-theme='space'] .task-item .reward { color: #FFD98A; }
 html[data-theme='space'] .task-item .reward.penalty { color: #FFA899; }
+html[data-theme='space'] .reward { color: #FFD98A; }
+html[data-theme='space'] .mt-pending { color: #C5B8FF; }
+html[data-theme='space'] .count-minus { color: #FFA899; }
+html[data-theme='space'] .btn-danger { color: #FFA899; }
+html[data-theme='space'] .trend-net.positive { color: #7FE29A; }
+html[data-theme='space'] .trend-net.negative { color: #FF8D7E; }
+html[data-theme='space'] .reward.penalty { color: #FFA899 !important; }
+html[data-theme='space'] .amount.earn { color: #93E2AC; }
+html[data-theme='space'] .amount.penalty { color: #FFA899; }
+html[data-theme='space'] .reward-cost { color: #C5B8FF; }
+html[data-theme='space'] .trend-value { color: #BFC9E6; }
 
 /* ---------- 花园物语 ---------- */
 html[data-theme='garden'] {
@@ -747,7 +752,7 @@ html[data-theme='garden'] {
   --sky-light: #DFEEF4;
   --bg: #F5F7EE;
   --text: #33402C;
-  --text-light: #93A088;
+  --text-light: #5E6B58;
   --line: #E0E7D2;
   --radius: 22px;
   --radius-sm: 14px;
@@ -781,7 +786,7 @@ html[data-theme='macaron'] {
   --sky-light: #E5F2FB;
   --bg: #FEF5F7;
   --text: #4C3A44;
-  --text-light: #B5A0AC;
+  --text-light: #776771;
   --line: #F3E2E8;
   --radius: 24px;
   --radius-sm: 16px;

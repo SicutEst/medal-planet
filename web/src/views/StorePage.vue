@@ -545,7 +545,7 @@ onMounted(() => {
   flex: 1;
   padding: 10px;
   border: none;
-  background: white;
+  background: var(--card-bg);
   border-radius: var(--radius-sm);
   color: var(--text-light);
   font-weight: 500;
@@ -564,7 +564,7 @@ onMounted(() => {
   align-items: center;
   gap: 12px;
   padding: 16px;
-  background: white;
+  background: var(--card-bg);
   border-radius: var(--radius);
   margin-bottom: 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.05);
@@ -605,13 +605,13 @@ onMounted(() => {
   border-radius: 10px;
 }
 
-.tier-star { background: #FFF3E0; color: #FF9800; }
-.tier-purple { background: #F3E5F5; color: #9C27B0; }
-.tier-sky { background: #E3F2FD; color: #2196F3; }
-.tier-green { background: #E8F5E9; color: #4CAF50; }
-.tag-stock { background: #FFF8E1; color: #F57C00; }
-.tag-unlimited { background: #E8F5E9; color: #4CAF50; }
-.tag-soldout { background: #FFEBEE; color: #E53935; }
+.tier-star { background: #FFF3E0; color: #82600F; }
+.tier-purple { background: #F3E5F5; color: #7B1FA2; }
+.tier-sky { background: #E3F2FD; color: #1565C0; }
+.tier-green { background: #E8F5E9; color: #1B5E20; }
+.tag-stock { background: #FFF8E1; color: #82600F; }
+.tag-unlimited { background: #E8F5E9; color: #1B5E20; }
+.tag-soldout { background: #FFEBEE; color: #C62828; }
 
 .reward-action {
   text-align: center;
@@ -620,7 +620,7 @@ onMounted(() => {
 
 .reward-cost {
   font-weight: 700;
-  color: var(--purple);
+  color: #6A45C0;
   margin-bottom: 6px;
   white-space: nowrap;
 }
@@ -672,7 +672,7 @@ onMounted(() => {
 }
 
 .gacha-reward-card {
-  background: #FAFAFA;
+  background: var(--bg);
 }
 
 /* 兑换记录 */
@@ -681,7 +681,7 @@ onMounted(() => {
   align-items: center;
   gap: 12px;
   padding: 14px;
-  background: white;
+  background: var(--card-bg);
   border-radius: var(--radius);
   margin-bottom: 10px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.05);
@@ -732,9 +732,9 @@ onMounted(() => {
   margin-top: 4px;
 }
 
-.status-badge.pending { background: #FFF3E0; color: #FF9800; }
-.status-badge.confirmed { background: #E8F5E9; color: #4CAF50; }
-.status-badge.cancelled { background: #FFEBEE; color: #E53935; }
+.status-badge.pending { background: #FFF3E0; color: #82600F; }
+.status-badge.confirmed { background: #E8F5E9; color: #1B5E20; }
+.status-badge.cancelled { background: #FFEBEE; color: #C62828; }
 
 /* 弹窗 */
 .modal-overlay {
@@ -748,7 +748,7 @@ onMounted(() => {
 }
 
 .modal {
-  background: white;
+  background: var(--card-bg);
   border-radius: var(--radius);
   padding: 24px;
   max-width: 360px;
@@ -783,7 +783,7 @@ onMounted(() => {
   width: 40px;
   height: 40px;
   border: 2px solid #E8E8E8;
-  background: white;
+  background: var(--card-bg);
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 20px;
@@ -806,7 +806,7 @@ onMounted(() => {
   flex: 1;
   padding: 8px;
   border: 2px solid #E8E8E8;
-  background: white;
+  background: var(--card-bg);
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 13px;
@@ -946,7 +946,7 @@ onMounted(() => {
 }
 
 .pet-card {
-  background: white;
+  background: var(--card-bg);
   border-radius: var(--radius-sm);
   padding: 12px 8px;
   text-align: center;
@@ -956,16 +956,16 @@ onMounted(() => {
 }
 
 .pet-card.tier-star {
-  border-color: #FF9800;
+  border-color: #82600F;
   background: linear-gradient(135deg, #FFF3E0, #FFFFFF);
 }
 
 .pet-card.tier-purple {
-  border-color: #9C27B0;
+  border-color: #7B1FA2;
 }
 
 .pet-card.tier-sky {
-  border-color: #2196F3;
+  border-color: #1565C0;
 }
 
 .pet-icon {
@@ -1012,7 +1012,7 @@ onMounted(() => {
 }
 
 .multi-item {
-  background: #FAFAFA;
+  background: var(--bg);
   border-radius: var(--radius-sm);
   padding: 10px 6px;
   text-align: center;
@@ -1021,16 +1021,16 @@ onMounted(() => {
 }
 
 .multi-item.tier-star {
-  border-color: #FF9800;
+  border-color: #82600F;
   background: linear-gradient(135deg, #FFF3E0, #FFFFFF);
 }
 
 .multi-item.tier-purple {
-  border-color: #9C27B0;
+  border-color: #7B1FA2;
 }
 
 .multi-item.tier-sky {
-  border-color: #2196F3;
+  border-color: #1565C0;
 }
 
 .multi-icon {
@@ -1071,6 +1071,6 @@ onMounted(() => {
 
 .btn-danger {
   background: #FFEBEE;
-  color: #E53935;
+  color: #C62828;
 }
 </style>

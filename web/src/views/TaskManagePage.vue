@@ -681,7 +681,7 @@ onMounted(() => {
 .count-badge {
   font-size: 12px;
   color: var(--text-light);
-  background: #F5F5F5;
+  background: var(--bg);
   padding: 4px 8px;
   border-radius: 10px;
 }
@@ -717,13 +717,13 @@ onMounted(() => {
 }
 
 .btn-danger {
-  background: #FFF0F0;
-  color: #FF3B30;
+  background: var(--coral-light);
+  color: #C62828;
   border: 1px solid #FFDAD6;
 }
 
 .btn-danger:hover {
-  background: #FFDAD6;
+  background: var(--coral-light);
 }
 
 .task-name {
@@ -754,22 +754,22 @@ onMounted(() => {
   padding: 1px 6px;
 }
 
-.tag-sky { background: #E3F2FD; color: #1976D2; }
-.tag-gold { background: #FFF8E1; color: #F57C00; }
-.tag-orange { background: #FFF3E0; color: #E65100; }
-.tag-red { background: #FFEBEE; color: #E53935; }
-.tag-warn { background: #FFF3E0; color: #FF9800; }
+.tag-sky { background: #E3F2FD; color: #1565C0; }
+.tag-gold { background: #FFF8E1; color: #82600F; }
+.tag-orange { background: #FFF3E0; color: #B45309; }
+.tag-red { background: #FFEBEE; color: #C62828; }
+.tag-warn { background: #FFF3E0; color: #82600F; }
 
 .bad-habit-section {
   border-left: 4px solid #FF6B6B;
 }
 
 .bad-habit-item {
-  background: #FFF8F8;
+  background: var(--coral-light);
 }
 
 .reward.penalty {
-  color: #E53935 !important;
+  color: #C62828 !important;
 }
 
 /* 弹窗 */
@@ -787,7 +787,7 @@ onMounted(() => {
 }
 
 .modal {
-  background: white;
+  background: var(--card-bg);
   border-radius: var(--radius);
   padding: 24px;
   max-width: 360px;
@@ -820,7 +820,7 @@ onMounted(() => {
 }
 
 .template-card {
-  background: #F8F8F8;
+  background: var(--bg);
   border: 2px solid transparent;
   border-radius: var(--radius);
   padding: 16px 12px;
@@ -831,7 +831,7 @@ onMounted(() => {
 }
 
 .template-card:hover {
-  background: #F0F0F0;
+  background: var(--bg);
 }
 
 .template-card.selected {
@@ -871,7 +871,7 @@ onMounted(() => {
 
 /* 快速批量设置 */
 .quick-batch {
-  background: #F5F5F5;
+  background: var(--bg);
   border-radius: var(--radius-sm);
   padding: 12px;
   margin-bottom: 16px;
@@ -924,8 +924,8 @@ onMounted(() => {
 
 .batch-buttons .btn {
   padding: 6px 10px;
-  border: 1px solid #E0E0E0;
-  background: white;
+  border: 1px solid var(--line);
+  background: var(--card-bg);
   border-radius: 6px;
   cursor: pointer;
   font-size: 12px;
@@ -955,12 +955,12 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   padding: 12px;
-  background: #FAFAFA;
+  background: var(--bg);
   cursor: pointer;
 }
 
 .task-edit-header:hover {
-  background: #F0F0F0;
+  background: var(--bg);
 }
 
 .task-name-input {
@@ -993,7 +993,7 @@ onMounted(() => {
 
 .task-edit-detail {
   padding: 16px;
-  background: white;
+  background: var(--card-bg);
   border-top: 1px solid #E8E8E8;
 }
 
@@ -1019,8 +1019,8 @@ onMounted(() => {
 
 .type-selector button, .repeat-selector button, .valid-selector button {
   padding: 8px 12px;
-  border: 1px solid #E0E0E0;
-  background: white;
+  border: 1px solid var(--line);
+  background: var(--card-bg);
   border-radius: 6px;
   cursor: pointer;
   font-size: 12px;

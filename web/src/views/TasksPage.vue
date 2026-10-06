@@ -131,7 +131,7 @@ onMounted(() => {
   flex: 1;
   padding: 10px;
   border: none;
-  background: white;
+  background: var(--card-bg);
   border-radius: var(--radius-sm);
   color: var(--text-light);
   font-weight: 500;
@@ -191,18 +191,18 @@ onMounted(() => {
   border-radius: 10px;
 }
 
-.tag-sky { background: #E3F2FD; color: #1976D2; }
-.tag-gold { background: #FFF8E1; color: #F57C00; }
-.tag-orange { background: #FFF3E0; color: #E65100; }
-.tag-red { background: #FFEBEE; color: #E53935; }
-.tag-warn { background: #FFF3E0; color: #FF9800; }
+.tag-sky { background: #E3F2FD; color: #1565C0; }
+.tag-gold { background: #FFF8E1; color: #82600F; }
+.tag-orange { background: #FFF3E0; color: #B45309; }
+.tag-red { background: #FFEBEE; color: #C62828; }
+.tag-warn { background: #FFF3E0; color: #82600F; }
 
 .bad-habit-card {
   border-left: 4px solid #FF6B6B;
 }
 
 .bad-habit-item {
-  background: #FFF8F8 !important;
+  background: var(--coral-light) !important;
 }
 
 /* 奖励徽章样式统一走 main.css 的 .task-item .reward（含夜间模式亮色适配） */

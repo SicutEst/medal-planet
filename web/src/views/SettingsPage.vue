@@ -716,6 +716,7 @@ onMounted(() => {
   display: block;
   font-size: 14px;
   font-weight: 700;
+  color: var(--text);
 }
 
 .theme-desc {
@@ -728,6 +729,7 @@ onMounted(() => {
 .theme-cur {
   font-size: 14px;
   flex-shrink: 0;
+  color: var(--text-light);
 }
 
 .theme-check {

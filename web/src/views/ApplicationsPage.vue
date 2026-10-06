@@ -163,7 +163,7 @@ onMounted(() => {
 
 <style scoped>
 .application-card {
-  background: white;
+  background: var(--card-bg);
   border-radius: var(--radius);
   padding: 16px;
   margin-bottom: 12px;
@@ -218,7 +218,7 @@ onMounted(() => {
 
 /* 历史卡片 */
 .history-card {
-  background: white;
+  background: var(--card-bg);
   border-radius: var(--radius);
   padding: 16px;
   margin-bottom: 12px;
@@ -239,12 +239,12 @@ onMounted(() => {
 
 .type-badge.earn {
   background: #E8F5E9;
-  color: #4CAF50;
+  color: #1B5E20;
 }
 
 .type-badge.penalty {
   background: #FFEBEE;
-  color: #F44336;
+  color: #C62828;
 }
 
 .status-badge {
@@ -255,18 +255,18 @@ onMounted(() => {
 }
 
 .status-badge.pending {
-  background: #FFF3E0;
-  color: #FF9800;
+  background: var(--secondary-light);
+  color: #82600F;
 }
 
 .status-badge.approved {
   background: #E8F5E9;
-  color: #4CAF50;
+  color: #1B5E20;
 }
 
 .status-badge.rejected {
   background: #FFEBEE;
-  color: #F44336;
+  color: #C62828;
 }
 
 .history-content {
