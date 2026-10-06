@@ -249,6 +249,11 @@
                     弹性奖励（奖励根据实际完成量计算）
                   </label>
                 </div>
+                <p class="mode-hint">
+                  {{ task.accumulativeMode === 'cumulative'
+                    ? '孩子每完成一次点一下计数，奖励 = 单次奖励 × 当日次数（如喝水：一杯一点，按杯数给贴纸）。适合"每一下都算数"的任务。'
+                    : '孩子当天累计点满 ' + task.targetCount + ' 次才算完成，审批通过后一次性发放单次奖励（如跳绳 3 组：满 3 组才算完成）。适合"攒够次数才有奖励"的任务。' }}
+                </p>
               </div>
 
               <div v-if="task.category === 'temporary'" class="detail-row">
@@ -1104,5 +1109,12 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   gap: 12px;
+}
+
+.mode-hint {
+  font-size: 12px;
+  color: #999;
+  line-height: 1.5;
+  margin: 8px 0 0;
 }
 </style>

@@ -75,7 +75,12 @@
                 title="减一次"
                 @click.stop="decrementTask(task)"
               >－</span>
-              <span class="tag tag-gold">
+              <span
+                class="tag tag-gold"
+                :title="task.accumulative_mode === 'cumulative'
+                  ? '累计型：每完成一次点一下整行计一次数，奖励按次数计算；点 － 可减一次'
+                  : '达标型：今天累计满 ' + task.target_count + ' 次才算完成，通过审批后一次性发奖；点 － 可减一次'"
+              >
                 {{ task.accumulative_mode === 'cumulative' ? '累计' : '达标' }} {{ task.count_today || 0 }}/{{ task.target_count }}
               </span>
             </template>
