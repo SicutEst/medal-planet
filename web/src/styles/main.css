@@ -638,6 +638,21 @@ html[data-theme='mario'] .btn-danger {
   box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.35), 0 4px 0 var(--primary-dark);
 }
 
+/* 红蓝经典配色：次要按钮与奖励价格用马里奥蓝（红=主操作，蓝=次要，黄=货币） */
+html[data-theme='mario'] .btn-secondary {
+  color: #0277BD;
+  border-color: #9CCBE8;
+  box-shadow: 0 4px 0 #9CCBE8;
+}
+
+html[data-theme='mario'] .btn-secondary:active {
+  box-shadow: 0 2px 0 #9CCBE8;
+}
+
+html[data-theme='mario'] .reward-cost {
+  color: #0277BD;
+}
+
 html[data-theme='mario'] .card {
   border: 3px solid #E3D3AC;
 }
