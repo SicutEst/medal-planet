@@ -4,7 +4,7 @@
     <div class="header">
       <div>
         <h1>🏅 奖章星球</h1>
-        <p style="font-size: 14px; opacity: 0.9;">{{ family?.name || '' }} · {{ authStore.member?.name }}</p>
+        <p style="font-size: 14px; opacity: 0.9;">{{ authStore.family?.name || '' }} · {{ authStore.member?.name }}</p>
       </div>
       <div class="role-badge" :class="authStore.isParent ? 'parent' : 'child'">
         {{ authStore.member?.avatar || (authStore.isParent ? '👨‍👩‍👧' : '👦') }}
@@ -70,38 +70,45 @@
             <span v-else-if="task.category === 'temporary'" class="tag tag-todo">待办</span>
             <template v-if="task.target_count > 1">
               <span
-                v-if="(task.count_today || 0) > 0"
+                v-if="zOf(task) > 0"
                 class="count-minus"
-                title="减一次"
+                title="减一次（只影响未提交的计数）"
                 @click.stop="decrementTask(task)"
               >－</span>
               <span
                 class="tag tag-gold"
-                :title="task.accumulative_mode === 'cumulative'
-                  ? '累计型：每完成一次点一下整行计一次数，奖励按次数计算；点 － 可减一次'
-                  : '达标型：今天累计满 ' + task.target_count + ' 次才算完成，通过审批后一次性发奖；点 － 可减一次'"
+                :title="'目标 ' + task.target_count + ' 次：每完成一次点一下整行计数；点「提交」后按次数 × 单次奖励等待审批'"
               >
-                {{ task.accumulative_mode === 'cumulative' ? '累计' : '达标' }} {{ task.count_today || 0 }}/{{ task.target_count }}
+                {{ task.count_today || 0 }}/{{ task.target_count }}
               </span>
             </template>
+            <span v-if="(task.pending_count || 0) > 0" class="tag-sky">待审 {{ task.pending_count }}</span>
           </div>
-          <div class="reward" :class="{ penalty: task.category === 'bad_habit' }">
-            {{ task.category === 'bad_habit' ? '-' : '+' }}{{ task.sticker_reward }} 🎟️
+          <div class="task-actions">
+            <button
+              v-if="task.category !== 'bad_habit' && zOf(task) > 0"
+              class="submit-mini"
+              :title="'提交 ' + zOf(task) + ' 次完成，等待家长审批'"
+              @click.stop="submitTask(task)"
+            >提交 {{ zOf(task) }}</button>
+            <div class="reward" :class="{ penalty: task.category === 'bad_habit' }">
+              {{ task.category === 'bad_habit' ? '-' : '+' }}{{ task.sticker_reward }} 🎟️
+            </div>
           </div>
         </div>
 
         <button
-          v-if="hasCompletedTask && !submittedToday"
+          v-if="hasCompletedTask"
           class="btn btn-primary"
           style="width: 100%; margin-top: 16px"
           @click="submitDailyTasks"
           :disabled="submitting"
         >
-          {{ submitting ? '提交中...' : '📤 提交今日任务' }}
+          {{ submitting ? '提交中...' : '📤 一键提交全部' }}
         </button>
 
-        <div v-if="submittedToday" class="submit-success">
-          ✅ 已提交，等待家长审批
+        <div v-if="allSubmitted" class="submit-success">
+          ✅ 今日完成量已全部提交，等待家长审批
         </div>
       </div>
     </div>
@@ -157,7 +164,7 @@
     <div v-if="showSubsidyModal" class="modal-overlay" @click="showSubsidyModal = false">
       <div class="modal" @click.stop>
         <div class="modal-title">💝 补贴贴纸</div>
-        
+
         <div class="form-group">
           <label>选择孩子</label>
           <select v-model="subsidyForm.childId" class="input">
@@ -171,7 +178,7 @@
         <div class="form-group">
           <label>补贴日期</label>
           <div class="date-selector">
-            <button 
+            <button
               v-for="n in 7" :key="n"
               :class="{ active: subsidyForm.daysAgo === n - 1 }"
               @click="subsidyForm.daysAgo = n - 1"
@@ -221,13 +228,12 @@ import { localDateStr } from '../utils/date'
 import api from '../api'
 
 const authStore = useAuthStore()
-const family = computed(() => authStore.family)
 const todayTasks = ref([])
 const pendingApps = ref([])
 const loading = ref(false)
 const submitting = ref(false)
 
-// 补贴相关
+// 补贴相关（家长）
 const showSubsidyModal = ref(false)
 const children = ref([])
 const habitTasks = ref([])
@@ -299,31 +305,22 @@ const todayStr = computed(() => {
   return `${d.getMonth() + 1}月${d.getDate()}日 ${['日','一','二','三','四','五','六'][d.getDay()]}`
 })
 
+// 剩余可提交量（服务端权威计算：当日完成 - 待审 - 已批）
+const zOf = (task) => task.unsubmitted_count || 0
+
 const hasCompletedTask = computed(() => {
-  return todayTasks.value.some(t => (t.count_today || 0) > 0 && t.category !== 'bad_habit')
+  return todayTasks.value.some(t => t.category !== 'bad_habit' && zOf(t) > 0)
 })
 
-// 任务今日是否算"完成"：多计数任务（达标/累计）需达到目标次数，其余有记录即算
-const isTaskDone = (task) => {
-  const count = task.count_today || 0
-  if (task.target_count > 1) {
-    return count >= task.target_count
-  }
-  return count > 0
-}
+const allSubmitted = computed(() => {
+  if (loading.value) return false
+  const normal = todayTasks.value.filter(t => t.category !== 'bad_habit')
+  return normal.length > 0 && normal.every(t => zOf(t) === 0) && normal.some(t => (t.count_today || 0) > 0)
+})
 
-// 多计数任务递减一次（纠错用，无弹窗）
-const decrementTask = async (task) => {
-  try {
-    const res = await api.post(`/task/${task.id}/uncomplete`, {
-      date: localDateStr(),
-      count: 1
-    })
-    task.count_today = res?.countToday ?? Math.max(0, (task.count_today || 0) - 1)
-    task.is_completed_today = task.count_today
-  } catch (e) {
-    alert(e?.response?.data?.error || '操作失败')
-  }
+// 任务今日是否算"完成"：完成量已全部提交（无剩余可提交）即算
+const isTaskDone = (task) => {
+  return (task.count_today || 0) > 0 && zOf(task) === 0
 }
 
 const loadTodayTasks = async () => {
@@ -355,39 +352,50 @@ const loadPendingApps = async () => {
   }
 }
 
+// 多计数任务递减一次（纠错用，无弹窗；服务端保证不会减到已提交/已批的量）
+const decrementTask = async (task) => {
+  try {
+    await api.post(`/task/${task.id}/uncomplete`, {
+      date: localDateStr(),
+      count: 1
+    })
+    await loadTodayTasks()
+  } catch (e) {
+    alert(e?.response?.data?.error || '操作失败')
+  }
+}
+
+// 提交单个任务的全部未提交完成量（按次计件：剩余量由服务端权威计算，防重复发奖）
+const submitTask = async (task) => {
+  try {
+    await api.post(`/task/${task.id}/submit`)
+    await loadTodayTasks()
+    await loadPendingApps()
+  } catch (e) {
+    alert(e?.response?.data?.error || '提交失败')
+  }
+}
+
 const toggleTask = async (task) => {
   const count = task.count_today || 0
 
-  // 已达成目标次数的任务再次点击 = 取消今日打卡（直接切换，无弹窗；
-  // 坏习惯即时扣分不适用，由其专属确认框把关）
-  if (task.category !== 'bad_habit' && isTaskDone(task)) {
-    try {
-      await api.post(`/task/${task.id}/uncomplete`, { date: localDateStr() })
-      task.count_today = 0
-      task.is_completed_today = 0
-    } catch (e) {
-      alert(e?.response?.data?.error || '取消失败')
-    }
-    return
-  }
-
-  // 坏习惯一天只记一次
-  if (task.category === 'bad_habit' && count >= 1) return
-
-  // 坏习惯需要确认
+  // 坏习惯：家长记录，一天一次，扣贴纸前确认
   if (task.category === 'bad_habit') {
-    if (!confirm(`确认发生了「${task.name}」？\n\n将扣除 ${task.sticker_reward} 个贴纸`)) {
+    if (count >= 1) return
+    if (!confirm(`确认记录坏习惯「${task.name}」？\n\n将扣除 ${task.sticker_reward} 个贴纸`)) {
       return
     }
   }
+
+  // 已全部提交（无剩余可提交量）的任务锁定，不能再改动
+  if (task.category !== 'bad_habit' && zOf(task) === 0 && count > 0) return
 
   try {
     const res = await api.post(`/task/${task.id}/complete`, {
       date: localDateStr()
     })
-    // 用服务端返回的累计次数更新本地状态
-    task.count_today = res?.countToday ?? (count + 1)
-    task.is_completed_today = task.count_today
+    // 待审/剩余量由服务端计算，操作后重新拉取保持账目一致
+    await loadTodayTasks()
 
     // 坏习惯扣贴纸后刷新余额，并向用户反馈实际扣除情况（余额不足时实际扣除可能少于请求）
     if (task.category === 'bad_habit') {
@@ -402,50 +410,19 @@ const toggleTask = async (task) => {
   }
 }
 
-// 当日"已提交"标记按成员+日期存储，刷新页面不会重复提交
-const submittedFlagKey = () => `submitted_${authStore.member?.id}_${localDateStr()}`
-const submittedToday = ref(localStorage.getItem(submittedFlagKey()) === '1')
-
-// 提交资格：达标型需达到目标次数；累计型按次数折算；单次任务有记录即可
-const isSubmittable = (task) => {
-  const count = task.count_today || 0
-  if (task.target_count > 1 && task.accumulative_mode === 'pass_or_fail') {
-    return count >= task.target_count
-  }
-  return count > 0
-}
-
+// 批量提交：把所有任务剩余可提交量一次性提交
 const submitDailyTasks = async () => {
   submitting.value = true
   try {
-    // 找出符合提交条件的任务（坏习惯不贴纸，不走审批）
-    const eligibleTasks = todayTasks.value.filter(t => t.category !== 'bad_habit' && isSubmittable(t))
-    let skipped = 0
-    for (const task of eligibleTasks) {
-      const count = task.count_today || 0
-      const requested = task.accumulative_mode === 'cumulative' && task.target_count > 1
-        ? task.sticker_reward * count
-        : task.sticker_reward
-      const res = await api.post('/application', {
-        applicantId: authStore.member.id,
-        taskId: task.id,
-        applicationType: 'earn',
-        requestedStickers: requested,
-        reason: `完成「${task.name}」${count > 1 ? ` ×${count}` : ''}`
-      })
-      if (res?.skipped) skipped++
+    const targets = todayTasks.value.filter(t => t.category !== 'bad_habit' && zOf(t) > 0)
+    for (const task of targets) {
+      await api.post(`/task/${task.id}/submit`)
     }
-    submittedToday.value = true
-    localStorage.setItem(submittedFlagKey(), '1')
-    if (skipped > 0) {
-      alert(`已提交，其中 ${skipped} 个任务此前已有待审批申请，未重复提交`)
-    } else {
-      alert('已提交，等待家长审批')
-    }
-    await authStore.refreshMember()
+    await loadTodayTasks()
     await loadPendingApps()
+    if (targets.length > 0) alert(`已提交 ${targets.length} 项任务，等待家长审批`)
   } catch (e) {
-    console.error('提交失败', e)
+    alert(e?.response?.data?.error || '提交失败')
   } finally {
     submitting.value = false
   }
@@ -645,7 +622,7 @@ onMounted(() => {
   font-weight: bold;
 }
 
-/* 坏习惯任务样式 */
+/* 任务行交互 */
 .task-item.clickable {
   cursor: pointer;
 }
@@ -810,5 +787,35 @@ onMounted(() => {
 
 .count-minus:hover {
   background: #FFCDD2;
+}
+
+.task-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.submit-mini {
+  border: none;
+  background: var(--primary);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.submit-mini:hover { opacity: 0.85; }
+
+.tag-sky {
+  background: #E3F2FD;
+  color: #1976D2;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-left: 6px;
 }
 </style>

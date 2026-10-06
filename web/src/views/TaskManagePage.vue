@@ -29,7 +29,7 @@
                   <span class="reward">+{{ task.sticker_reward }} 🎟️</span>
                   <span class="tag tag-sky">{{ getRepeatText(task) }}</span>
                   <span v-if="task.target_count > 1" class="tag tag-gold">
-                    {{ task.accumulative_mode === 'cumulative' ? '累计' : '达标' }}型 · {{ task.target_count }}次
+                    目标 {{ task.target_count }} 次/天
                   </span>
                 </div>
               </div>
@@ -238,21 +238,8 @@
               </div>
 
               <div v-if="task.category === 'habit' && task.targetCount > 1" class="detail-row">
-                <label>模式</label>
-                <div class="mode-selector">
-                  <label>
-                    <input type="radio" v-model="task.accumulativeMode" value="pass_or_fail">
-                    达标型（不满则失败）
-                  </label>
-                  <label>
-                    <input type="radio" v-model="task.accumulativeMode" value="cumulative">
-                    弹性奖励（奖励根据实际完成量计算）
-                  </label>
-                </div>
                 <p class="mode-hint">
-                  {{ task.accumulativeMode === 'cumulative'
-                    ? '孩子每完成一次点一下计数，奖励 = 单次奖励 × 当日次数（如喝水：一杯一点，按杯数给贴纸）。适合"每一下都算数"的任务。'
-                    : '孩子当天累计点满 ' + task.targetCount + ' 次才算完成，审批通过后一次性发放单次奖励（如跳绳 3 组：满 3 组才算完成）。适合"攒够次数才有奖励"的任务。' }}
+                  孩子每完成一次点一下计数，可分次提交；奖励 = 单次奖励 × 当日完成次数（如喝水：一杯一点，按杯数给贴纸）。
                 </p>
               </div>
 
@@ -448,8 +435,7 @@ const confirmTemplates = () => {
           category: 'habit',
           repeatRule: 'daily',
           validDays: 0,
-          targetCount: 1,
-          accumulativeMode: 'pass_or_fail'
+          targetCount: 1
         })
       })
     }
@@ -514,7 +500,6 @@ const addTasks = (count) => {
       category: batchCategory.value,
       repeatRule: batchRepeatRule.value,
       targetCount: 1,
-      accumulativeMode: 'pass_or_fail',
       validDays: batchValidDays.value,
       stickerReward: 1
     })
@@ -576,7 +561,6 @@ const saveAllTasks = async () => {
       repeatRule: (t.category === 'habit' || t.category === 'bad_habit') ? t.repeatRule : 'daily',
       customDays: null,
       targetCount: t.category === 'bad_habit' ? 1 : t.targetCount,
-      accumulativeMode: t.accumulativeMode,
       validDays: t.category === 'temporary' ? t.validDays : null,
       stickerReward: t.stickerReward
     }))

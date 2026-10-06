@@ -8,7 +8,7 @@
     <div class="filter-tabs">
       <button :class="{ active: filter === 'all' }" @click="filter = 'all'">全部</button>
       <button :class="{ active: filter === 'habit' }" @click="filter = 'habit'">好习惯</button>
-      <button :class="{ active: filter === 'bad_habit' }" @click="filter = 'bad_habit'">坏习惯</button>
+      <button v-if="authStore.isParent" :class="{ active: filter === 'bad_habit' }" @click="filter = 'bad_habit'">坏习惯</button>
       <button :class="{ active: filter === 'temporary' }" @click="filter = 'temporary'">临时任务</button>
     </div>
 
@@ -35,7 +35,7 @@
     </div>
 
     <!-- 坏习惯任务 -->
-    <div class="card bad-habit-card" v-if="filter === 'all' || filter === 'bad_habit'">
+    <div class="card bad-habit-card" v-if="authStore.isParent && (filter === 'all' || filter === 'bad_habit')">
       <h3>⚠️ 坏习惯</h3>
       <div v-if="badHabitTasks.length === 0" class="empty-state" style="padding: 20px">
         <p>暂无坏习惯任务</p>
@@ -87,7 +87,8 @@ const tasks = ref([])
 const filter = ref('all')
 
 const habitTasks = computed(() => tasks.value.filter(t => t.category === 'habit'))
-const badHabitTasks = computed(() => tasks.value.filter(t => t.category === 'bad_habit'))
+// 坏习惯由家长记录：孩子端不展示
+const badHabitTasks = computed(() => authStore.isParent ? tasks.value.filter(t => t.category === 'bad_habit') : [])
 const tempTasks = computed(() => tasks.value.filter(t => t.category === 'temporary'))
 
 const getRepeatText = (task) => {

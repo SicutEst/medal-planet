@@ -64,12 +64,16 @@ router.get('/history/:memberId', async (req, res) => {
   }
 });
 
-// 创建申请（孩子提交）。同一任务存在待审批申请时不重复创建。
+// 创建申请（仅限不关联任务的额外奖励/惩罚申请）。
+// 任务奖励统一走 POST /task/:id/submit（服务端计算剩余量，防止重复发奖）。
 router.post('/', async (req, res) => {
   try {
     const applicantId = req.member.id;
     const { taskId, applicationType, requestedStickers, reason } = req.body;
 
+    if (taskId) {
+      return res.status(400).json({ success: false, error: '任务奖励请通过打卡提交入口（POST /task/:id/submit）' });
+    }
     if (!['earn', 'penalty', 'custom'].includes(applicationType)) {
       return res.status(400).json({ success: false, error: '申请类型无效' });
     }
@@ -80,27 +84,10 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ success: false, error: '理由需为 200 字以内的文本' });
     }
 
-    // 关联任务时校验任务属于本家庭
-    if (taskId) {
-      const taskResult = await pool.query('SELECT family_id FROM tasks WHERE id = $1', [taskId]);
-      if (taskResult.rows.length === 0 || taskResult.rows[0].family_id !== req.member.family_id) {
-        return res.status(403).json({ success: false, error: '任务不存在或不属于本家庭' });
-      }
-
-      // 同一任务已有待审批申请：跳过，避免重复发放
-      const dupResult = await pool.query(
-        `SELECT id FROM applications WHERE applicant_id = $1 AND task_id = $2 AND status = 'pending'`,
-        [applicantId, taskId]
-      );
-      if (dupResult.rows.length > 0) {
-        return res.json({ success: true, skipped: true, message: '该任务已有待审批的申请' });
-      }
-    }
-
     const result = await pool.query(
-      `INSERT INTO applications (applicant_id, task_id, application_type, requested_stickers, reason)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [applicantId, taskId || null, applicationType, requestedStickers, reason || null]
+      `INSERT INTO applications (applicant_id, application_type, requested_stickers, reason)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [applicantId, applicationType, requestedStickers, reason || null]
     );
 
     res.json({ success: true, application: result.rows[0] });

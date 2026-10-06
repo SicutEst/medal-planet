@@ -63,16 +63,27 @@ router.get('/family/:familyId/today', async (req, res) => {
     const target = new Date(targetDate);
     const dayOfWeek = target.getDay(); // 0=周日, 6=周六
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const isParent = req.member.role === 'parent';
 
-    // 获取所有习惯任务（含坏习惯），completed_count 为当日累计次数（无记录为 NULL）
+    // 坏习惯由家长记录：孩子端服务端直接过滤，不返回坏习惯任务
+    const habitCategories = isParent ? "('habit', 'bad_habit')" : "('habit')";
+
+    // 获取习惯任务，completed_count 为当日累计次数（无记录为 NULL）；
+    // pending_count/approved_count 为当日已提交待审/已批的完成量（按次计件账目）
     const tasksResult = await pool.query(`
       SELECT t.*,
         (SELECT tc.count_today FROM task_completions tc
          WHERE tc.task_id = t.id AND tc.member_id = $2 AND tc.completed_date = $3 AND tc.is_subsidy = false LIMIT 1) as completed_count,
-        (SELECT tc.count_today FROM task_completions tc
-         WHERE tc.task_id = t.id AND tc.member_id = $2 AND tc.completed_date = $3 AND tc.is_subsidy = false LIMIT 1) as is_completed_today
+        (SELECT COALESCE(SUM(a.requested_count), 0) FROM applications a
+         WHERE a.applicant_id = $2 AND a.task_id = t.id AND a.status = 'pending'
+           AND a.requested_count IS NOT NULL
+           AND a.created_at >= $3::date AND a.created_at < ($3::date + INTERVAL '1 day')) as pending_count,
+        (SELECT COALESCE(SUM(a.requested_count), 0) FROM applications a
+         WHERE a.applicant_id = $2 AND a.task_id = t.id AND a.status = 'approved'
+           AND a.requested_count IS NOT NULL
+           AND a.created_at >= $3::date AND a.created_at < ($3::date + INTERVAL '1 day')) as approved_count
       FROM tasks t
-      WHERE t.family_id = $1 AND t.is_active = true AND t.category IN ('habit', 'bad_habit')
+      WHERE t.family_id = $1 AND t.is_active = true AND t.category IN ${habitCategories}
       ORDER BY t.created_at
     `, [familyId, memberId, targetDate]);
 
@@ -109,8 +120,14 @@ router.get('/family/:familyId/today', async (req, res) => {
       SELECT t.*,
         (SELECT tc.count_today FROM task_completions tc
          WHERE tc.task_id = t.id AND tc.member_id = $2 AND tc.completed_date = $3 AND tc.is_subsidy = false LIMIT 1) as completed_count,
-        (SELECT tc.count_today FROM task_completions tc
-         WHERE tc.task_id = t.id AND tc.member_id = $2 AND tc.completed_date = $3 AND tc.is_subsidy = false LIMIT 1) as is_completed_today
+        (SELECT COALESCE(SUM(a.requested_count), 0) FROM applications a
+         WHERE a.applicant_id = $2 AND a.task_id = t.id AND a.status = 'pending'
+           AND a.requested_count IS NOT NULL
+           AND a.created_at >= $3::date AND a.created_at < ($3::date + INTERVAL '1 day')) as pending_count,
+        (SELECT COALESCE(SUM(a.requested_count), 0) FROM applications a
+         WHERE a.applicant_id = $2 AND a.task_id = t.id AND a.status = 'approved'
+           AND a.requested_count IS NOT NULL
+           AND a.created_at >= $3::date AND a.created_at < ($3::date + INTERVAL '1 day')) as approved_count
       FROM tasks t
       WHERE t.family_id = $1 AND t.is_active = true AND t.category = 'temporary'
         AND t.created_at::date <= $3::date
@@ -123,13 +140,16 @@ router.get('/family/:familyId/today', async (req, res) => {
       ORDER BY t.created_at DESC
     `, [familyId, memberId, targetDate]);
 
-    // 合并结果；统一完成次数字段名为 count_today（SQL 别名是 completed_count，
-    // 前端打卡逻辑按 count_today 读写，名字不一致会导致刷新后勾选状态丢失）
+    // 合并结果；统一完成次数字段名为 count_today，并计算剩余可提交量：
+    // unsubmitted_count = 当日完成 - 待审 - 已批（按次计件账目，服务端权威计算）
     const allTasks = [...todayTasks.map(t => ({ ...t, is_today: true })),
                       ...tempTasksResult.rows.map(t => ({ ...t, is_today: true }))]
       .map(t => {
-        const c = t.completed_count || 0;
-        return { ...t, count_today: c, is_completed_today: c };
+        const c = Number(t.completed_count) || 0;
+        // pg 的 SUM 返回字符串，必须显式转数字（否则相加会变成字符串拼接）
+        const accounted = (Number(t.pending_count) || 0) + (Number(t.approved_count) || 0);
+        const z = Math.max(0, c - accounted);
+        return { ...t, count_today: c, is_completed_today: c, unsubmitted_count: z };
       });
 
     res.json({
@@ -402,10 +422,15 @@ router.post('/:id/complete', async (req, res) => {
         );
       }
 
-      // 贴纸发放语义：打卡只记录完成，贴纸统一经「提交申请 → 家长审批」发放（方案A）。
-      // 唯一例外是坏习惯：即时扣除贴纸，不经过审批。
+      // 贴纸发放语义（按次计件）：打卡只累计完成量，贴纸经「提交 → 家长审批」按
+      // 完成量 × 单次奖励 发放。唯一例外是坏习惯：家长记录后即时扣贴纸，不经过审批。
       let deductionResult = null;
       if (task.category === 'bad_habit') {
+        // 坏习惯由家长记录：孩子端已在 /today 过滤不可见，接口层再拦一次
+        if (req.member.role !== 'parent') {
+          await client.query('ROLLBACK');
+          return res.status(403).json({ success: false, error: '坏习惯由家长记录' });
+        }
         deductionResult = await deductStickers(client, {
           memberId, amount: task.sticker_reward, taskId: task.id, createdBy: memberId,
         });
@@ -441,13 +466,79 @@ router.post('/:id/complete', async (req, res) => {
   }
 });
 
+// 提交任务完成量（按次计件：剩余可提交 = 当日完成 - 待审 - 已批，服务端权威计算）
+// 坏习惯即时扣分，不走提交
+router.post('/:id/submit', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const memberId = req.member.id;
+    const targetDate = getLocalDateString();
+
+    const check = await getFamilyTask(req, id);
+    if (check.error) {
+      return res.status(check.code).json({ success: false, error: check.error });
+    }
+    const task = check.task;
+    if (task.category === 'bad_habit') {
+      return res.status(400).json({ success: false, error: '坏习惯任务即时扣分，无需提交' });
+    }
+
+    await client.query('BEGIN');
+
+    // 锁定当日完成记录，串行化同一任务的并发提交
+    const comp = await client.query(
+      `SELECT count_today FROM task_completions
+       WHERE task_id = $1 AND member_id = $2 AND completed_date = $3 AND is_subsidy = false FOR UPDATE`,
+      [id, memberId, targetDate]
+    );
+    const doneCount = comp.rows[0]?.count_today || 0;
+
+    const accountedRes = await client.query(
+      `SELECT COALESCE(SUM(requested_count), 0) AS c FROM applications
+       WHERE applicant_id = $1 AND task_id = $2 AND status IN ('pending', 'approved')
+         AND requested_count IS NOT NULL
+         AND created_at >= $3::date AND created_at < ($3::date + INTERVAL '1 day')`,
+      [memberId, id, targetDate]
+    );
+    const submitCount = doneCount - (Number(accountedRes.rows[0].c) || 0);
+    if (submitCount <= 0) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ success: false, error: '没有新完成量可提交（先打卡再提交）' });
+    }
+
+    const stickers = submitCount * task.sticker_reward;
+    const reason = `完成「${task.name}」` + (submitCount > 1 ? ` ×${submitCount}` : '');
+    const appResult = await client.query(
+      `INSERT INTO applications (applicant_id, task_id, application_type, requested_stickers, requested_count, reason)
+       VALUES ($1, $2, 'earn', $3, $4, $5) RETURNING *`,
+      [memberId, id, stickers, submitCount, reason]
+    );
+
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      message: `已提交 ${submitCount} 次，等待家长审批（${stickers} 贴纸）`,
+      application: appResult.rows[0],
+      submittedCount: submitCount
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('提交任务失败:', error);
+    res.status(500).json({ success: false, error: '操作失败' });
+  } finally {
+    client.release();
+  }
+});
+
 // 取消今日打卡（重新点击已勾选的任务时调用）
-// 规则：已提交审批（pending/approved）的不可取消；坏习惯与补贴记录不可取消
+// 只影响未提交的量：剩余可取消 = 当日完成 - 待审 - 已批；坏习惯与补贴记录不可取消
 router.post('/:id/uncomplete', async (req, res) => {
   try {
     const { id } = req.params;
     const memberId = req.member.id;
-    // body.count = 1 表示多计数任务递减一次；缺省为整条取消
+    // body.count = 1 表示多计数任务递减一次；缺省为取消全部未提交量
     const { date, count } = req.body;
     const targetDate = date || getLocalDateString();
 
@@ -459,47 +550,50 @@ router.post('/:id/uncomplete', async (req, res) => {
       return res.status(400).json({ success: false, error: '坏习惯记录不支持取消' });
     }
 
-    const appResult = await pool.query(
-      `SELECT id FROM applications
-       WHERE applicant_id = $1 AND task_id = $2
-         AND status IN ('pending', 'approved')
-         AND created_at >= $3::date AND created_at < ($3::date + INTERVAL '1 day')`,
-      [memberId, id, targetDate]
-    );
-    if (appResult.rows.length > 0) {
-      return res.status(409).json({ success: false, error: '该任务已提交审批，不能取消打卡' });
-    }
-
-    if (count === 1) {
-      // 多计数任务：递减一次，减到 0 删除记录
-      const rowRes = await pool.query(
-        `SELECT id, count_today FROM task_completions
-         WHERE task_id = $1 AND member_id = $2 AND completed_date = $3 AND is_subsidy = false`,
-        [id, memberId, targetDate]
-      );
-      if (rowRes.rows.length === 0) {
-        return res.status(404).json({ success: false, error: '今日没有该任务的打卡记录' });
-      }
-      const newCount = (rowRes.rows[0].count_today || 0) - 1;
-      if (newCount <= 0) {
-        await pool.query('DELETE FROM task_completions WHERE id = $1', [rowRes.rows[0].id]);
-      } else {
-        await pool.query('UPDATE task_completions SET count_today = $1 WHERE id = $2', [newCount, rowRes.rows[0].id]);
-      }
-      return res.json({ success: true, message: '已减少一次打卡', countToday: Math.max(0, newCount) });
-    }
-
-    const del = await pool.query(
-      `DELETE FROM task_completions
-       WHERE task_id = $1 AND member_id = $2 AND completed_date = $3 AND is_subsidy = false
-       RETURNING id`,
+    const comp = await pool.query(
+      `SELECT count_today FROM task_completions
+       WHERE task_id = $1 AND member_id = $2 AND completed_date = $3 AND is_subsidy = false`,
       [id, memberId, targetDate]
     );
-    if (del.rows.length === 0) {
+    if (comp.rows.length === 0) {
       return res.status(404).json({ success: false, error: '今日没有该任务的打卡记录' });
     }
 
-    res.json({ success: true, message: '已取消今日打卡' });
+    const accountedRes = await pool.query(
+      `SELECT COALESCE(SUM(requested_count), 0) AS c FROM applications
+       WHERE applicant_id = $1 AND task_id = $2 AND status IN ('pending', 'approved')
+         AND requested_count IS NOT NULL
+         AND created_at >= $3::date AND created_at < ($3::date + INTERVAL '1 day')`,
+      [memberId, id, targetDate]
+    );
+    const doneCount = Number(comp.rows[0].count_today) || 0;
+    const accounted = Number(accountedRes.rows[0].c) || 0;
+    const cancellable = doneCount - accounted;
+    if (cancellable <= 0) {
+      return res.status(409).json({ success: false, error: '没有可取消的未提交打卡' });
+    }
+
+    if (count === 1) {
+      // 多计数任务：递减一次（不会减到已提交/已批的量）
+      const newCount = doneCount - 1;
+      await pool.query('UPDATE task_completions SET count_today = $1 WHERE task_id = $2 AND member_id = $3 AND completed_date = $4', [newCount, id, memberId, targetDate]);
+      return res.json({ success: true, message: '已减少一次打卡', countToday: newCount });
+    }
+
+    // 整条取消：计数回落到已记账的量；若无已记账量则删除记录
+    if (accounted === 0) {
+      await pool.query(
+        `DELETE FROM task_completions
+         WHERE task_id = $1 AND member_id = $2 AND completed_date = $3 AND is_subsidy = false`,
+        [id, memberId, targetDate]
+      );
+      return res.json({ success: true, message: '已取消今日打卡', countToday: 0 });
+    }
+    await pool.query(
+      'UPDATE task_completions SET count_today = $1 WHERE task_id = $2 AND member_id = $3 AND completed_date = $4',
+      [accounted, id, memberId, targetDate]
+    );
+    res.json({ success: true, message: '已取消未提交的打卡', countToday: accounted });
   } catch (error) {
     console.error('取消打卡失败:', error);
     res.status(500).json({ success: false, error: '操作失败' });

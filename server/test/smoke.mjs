@@ -82,7 +82,7 @@ let taskId, badTaskId, quotaTaskId;
   check('孩子可查看任务列表', list.data?.success === true && list.data.tasks.length >= 3);
 }
 
-// ---- 打卡（方案A：打卡只记完成不发贴纸）----
+// ---- 打卡（打卡只累计完成量，不发贴纸）----
 {
   const r = await api('POST', `/task/${taskId}/complete`, { token: childToken, body: {} });
   check('孩子打卡成功', r.data?.success === true);
@@ -97,10 +97,13 @@ let taskId, badTaskId, quotaTaskId;
   const unBad = await api('POST', `/task/${badTaskId}/uncomplete`, { token: childToken, body: {} });
   check('坏习惯记录不可取消 400', unBad.status === 400);
 
-  const bad = await api('POST', `/task/${badTaskId}/complete`, { token: childToken, body: {} });
-  check('坏习惯打卡成功（余额0实际扣0）', bad.data?.success === true && bad.data.actualDeduction === 0, '实际=' + JSON.stringify(bad.data));
+  // 坏习惯由家长记录：孩子打卡 403
+  const badByChild = await api('POST', `/task/${badTaskId}/complete`, { token: childToken, body: {} });
+  check('孩子记录坏习惯被拒 403', badByChild.status === 403);
+  const badByParent = await api('POST', `/task/${badTaskId}/complete`, { token: ids.token, body: {} });
+  check('家长记录坏习惯成功', badByParent.data?.success === true);
 
-  // 达标型 3 次打卡
+  // 多计数任务 3 次打卡
   for (let i = 0; i < 3; i++) {
     await api('POST', `/task/${quotaTaskId}/complete`, { token: childToken, body: {} });
   }
@@ -110,43 +113,65 @@ let taskId, badTaskId, quotaTaskId;
   await api('POST', `/task/${quotaTaskId}/complete`, { token: childToken, body: {} });
   const today = await api('GET', `/task/family/${ids.familyId}/today`, { token: childToken });
   const qt = today.data.tasks.find(t => t.id === quotaTaskId);
-  check('达标型任务累计 3/3', qt && (qt.completed_count || 0) === 3, '实际=' + JSON.stringify(qt?.completed_count));
+  check('多计数任务累计 3/3', qt && (qt.completed_count || 0) === 3, '实际=' + JSON.stringify(qt?.completed_count));
+  check('今日任务包含剩余可提交量字段', qt && qt.unsubmitted_count === 3, '实际=' + JSON.stringify(qt?.unsubmitted_count));
 }
 
-// ---- 申请 + 审批（打卡不发贴纸，审批后发放）----
+// ---- 提交 + 审批（按次计件：剩余量由服务端计算）----
 {
-  const r = await api('POST', '/application', { token: childToken, body: { taskId, applicationType: 'earn', requestedStickers: 5, reason: 'test' } });
-  check('孩子创建申请', r.data?.success === true);
-  const appId = r.data.application.id;
+  // 提交多计数任务的 3 次：申请应为 3 × 5 = 15 贴纸
+  const sub = await api('POST', `/task/${quotaTaskId}/submit`, { token: childToken, body: {} });
+  check('提交剩余完成量成功', sub.data?.success === true && sub.data.submittedCount === 3, '实际=' + JSON.stringify(sub.data?.submittedCount));
+  check('申请金额 = 次数×单次奖励(3×8=24)', sub.data?.application?.requested_stickers === 24, '实际=' + sub.data?.application?.requested_stickers);
+  const appId = sub.data.application.id;
 
-  // 有待审批申请时不可取消打卡
-  const unBlock = await api('POST', `/task/${taskId}/uncomplete`, { token: childToken, body: {} });
-  check('已提交审批时取消打卡被拒 409', unBlock.status === 409);
+  // 提交后无新增量，再提交被拒 409
+  const resub = await api('POST', `/task/${quotaTaskId}/submit`, { token: childToken, body: {} });
+  check('无新增量重复提交被拒 409', resub.status === 409);
+
+  // 已全部提交后，取消/递减不可越过已记账量
+  const unBlock = await api('POST', `/task/${quotaTaskId}/uncomplete`, { token: childToken, body: {} });
+  check('全部提交后取消被拒 409', unBlock.status === 409);
+  const decBlock = await api('POST', `/task/${quotaTaskId}/uncomplete`, { token: childToken, body: { count: 1 } });
+  check('全部提交后递减被拒 409', decBlock.status === 409);
 
   const childReview = await api('PUT', `/application/${appId}/review`, { token: childToken, body: { approved: true } });
   check('孩子审批被拒 403', childReview.status === 403);
 
   const review = await api('PUT', `/application/${appId}/review`, { token: ids.token, body: { approved: true } });
   check('家长审批通过', review.data?.success === true);
-  check('审批后贴纸到账 5', review.data.member.current_stickers === 5, '实际=' + review.data.member?.current_stickers);
+  check('审批后贴纸到账 24', review.data.member.current_stickers === 24, '实际=' + review.data.member?.current_stickers);
 
   const again = await api('PUT', `/application/${appId}/review`, { token: ids.token, body: { approved: true } });
   check('重复审批返回 409', again.status === 409);
 
-  // 防重复：同一任务 pending 中不可重复申请
-  const dupApp = await api('POST', '/application', { token: childToken, body: { taskId, applicationType: 'earn', requestedStickers: 5 } });
-  check('已批准的任务可再次申请', dupApp.data?.success === true && !dupApp.data.skipped);
-  const dupApp2 = await api('POST', '/application', { token: childToken, body: { taskId, applicationType: 'earn', requestedStickers: 5 } });
-  check('pending 中重复申请被跳过', dupApp2.data?.success === true && dupApp2.data.skipped === true);
-  // 拒绝清理这条 pending，避免影响后续用例
-  await api('PUT', `/application/${dupApp.data.application.id}/review`, { token: ids.token, body: { approved: false } });
+  // 审批通过后再打卡 → 只提交新增量（不重复结算已批的 3 次）
+  await api('POST', `/task/${quotaTaskId}/complete`, { token: childToken, body: {} });
+  const sub2 = await api('POST', `/task/${quotaTaskId}/submit`, { token: childToken, body: {} });
+  check('再打卡后只提交新增 1 次', sub2.data?.success === true && sub2.data.submittedCount === 1, '实际=' + JSON.stringify(sub2.data?.submittedCount));
+  check('新增申请金额 = 1×8=8', sub2.data?.application?.requested_stickers === 8, '实际=' + sub2.data?.application?.requested_stickers);
+  await api('PUT', `/application/${sub2.data.application.id}/review`, { token: ids.token, body: { approved: true } });
+
+  // 单次任务提交：刷牙 1 次 → 5 贴纸
+  await api('POST', `/task/${taskId}/complete`, { token: childToken, body: {} });
+  const sub3 = await api('POST', `/task/${taskId}/submit`, { token: childToken, body: {} });
+  check('单次任务提交 1 次', sub3.data?.success === true && sub3.data.submittedCount === 1, '实际=' + JSON.stringify(sub3.data?.submittedCount));
+  await api('PUT', `/application/${sub3.data.application.id}/review`, { token: ids.token, body: { approved: true } });
+
+  // 通用申请接口不再接受关联任务（任务奖励走 submit）
+  const legacyApp = await api('POST', '/application', { token: childToken, body: { taskId, applicationType: 'earn', requestedStickers: 5 } });
+  check('通用接口关联任务被拒 400', legacyApp.status === 400);
+  // 自定义申请（不关联任务）仍可用
+  const customApp = await api('POST', '/application', { token: childToken, body: { applicationType: 'custom', requestedStickers: 1, reason: '额外奖励' } });
+  check('自定义申请仍可用', customApp.data?.success === true);
+  await api('PUT', `/application/${customApp.data.application.id}/review`, { token: ids.token, body: { approved: false } });
 }
 
 // ---- 调分（家长）+ 满160自动转粉球 ----
 {
   const r = await api('POST', '/sticker/adjust', { token: ids.token, body: { memberId: childId, changeType: 'earn', amount: 160, remark: '批量奖励' } });
   check('家长调分成功', r.data?.success === true);
-  check('满160自动转粉球（5+160=165→余5贴纸+1粉球）', r.data.member.current_stickers === 5 && r.data.member.current_balls === 1, '实际=' + JSON.stringify({ s: r.data.member?.current_stickers, b: r.data.member?.current_balls }));
+  check('满160自动转粉球（37+160=197→余37贴纸+1粉球）', r.data.member.current_stickers === 37 && r.data.member.current_balls === 1, '实际=' + JSON.stringify({ s: r.data.member?.current_stickers, b: r.data.member?.current_balls }));
   const childAdjust = await api('POST', '/sticker/adjust', { token: childToken, body: { memberId: childId, changeType: 'earn', amount: 100 } });
   check('孩子调分被拒 403', childAdjust.status === 403);
 }

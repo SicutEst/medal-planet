@@ -214,6 +214,13 @@ export async function initDatabase() {
       ALTER TABLE members ALTER COLUMN password TYPE VARCHAR(200);
     `);
 
+    // 申请表增加完成数量（按次计件模型：剩余可提交 = 当日计数 - 待审 - 已批）
+    await client.query(`
+      ALTER TABLE applications ADD COLUMN IF NOT EXISTS requested_count INT DEFAULT NULL;
+      UPDATE applications SET requested_count = 1
+       WHERE requested_count IS NULL AND task_id IS NOT NULL AND status IN ('pending', 'approved');
+    `);
+
     // 宠物/奖励收藏表（抽卡获得的奖励会进入收藏）
     await client.query(`
       CREATE TABLE IF NOT EXISTS pet_collections (

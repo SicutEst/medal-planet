@@ -51,7 +51,7 @@ const run = async () => {
         { name: '阅读30分钟', category: 'habit', repeatRule: 'daily', stickerReward: 2 },
         { name: '整理房间', category: 'habit', repeatRule: 'daily', stickerReward: 3 },
         { name: '跳绳100下', category: 'habit', repeatRule: 'daily', stickerReward: 5 },
-        { name: '口算练习（做满3页）', category: 'habit', targetCount: 3, accumulativeMode: 'pass_or_fail', stickerReward: 5 },
+        { name: '口算练习（做满3页）', category: 'habit', targetCount: 3, stickerReward: 5 },
         { name: '喝够8杯水', category: 'habit', targetCount: 8, accumulativeMode: 'cumulative', stickerReward: 1 },
       ],
     },
@@ -98,12 +98,9 @@ const run = async () => {
     }
   }
 
-  // 6. 留一条待审批：小明今天完成作业并提交申请
+  // 6. 留一条待审批：小明今天完成作业并提交
   await api('POST', `/task/${habitTasks[0].id}/complete`, { token: childToken, body: {} });
-  await api('POST', '/application', {
-    token: childToken,
-    body: { taskId: habitTasks[0].id, applicationType: 'earn', requestedStickers: 2, reason: '完成「按时完成作业」' },
-  });
+  await api('POST', `/task/${habitTasks[0].id}/submit`, { token: childToken, body: {} });
 
   console.log('✅ 演示环境就绪\n');
   console.log(`  家庭：快乐星球（演示）   家庭码：${family.code}`);
