@@ -114,14 +114,19 @@
 
       <div class="form-group">
         <label>密码</label>
-        <input 
-          v-model="passwordInput" 
-          type="password" 
-          class="input" 
-          placeholder="请输入密码"
-          @keyup.enter="doLogin"
-          ref="passwordInputRef"
-        >
+        <div class="pwd-wrap">
+          <input
+            v-model="passwordInput"
+            :type="showLoginPwd ? 'text' : 'password'"
+            class="input"
+            placeholder="请输入密码"
+            @keyup.enter="doLogin"
+            ref="passwordInputRef"
+          >
+          <button type="button" class="pwd-toggle" @click="showLoginPwd = !showLoginPwd" tabindex="-1">
+            {{ showLoginPwd ? '🙈' : '👁️' }}
+          </button>
+        </div>
       </div>
 
       <button 
@@ -168,7 +173,12 @@
         </div>
         <div class="form-group">
           <label>设定密码</label>
-          <input v-model="createForm.password" type="password" class="input" placeholder="请设定密码">
+          <div class="pwd-wrap">
+            <input v-model="createForm.password" :type="showCreatePwd ? 'text' : 'password'" class="input" placeholder="请设定密码">
+            <button type="button" class="pwd-toggle" @click="showCreatePwd = !showCreatePwd" tabindex="-1">
+              {{ showCreatePwd ? '🙈' : '👁️' }}
+            </button>
+          </div>
         </div>
 
         <div class="modal-actions">
@@ -210,7 +220,12 @@
         </div>
         <div class="form-group">
           <label>设定密码</label>
-          <input v-model="joinForm.password" type="password" class="input" placeholder="请设定密码">
+          <div class="pwd-wrap">
+            <input v-model="joinForm.password" :type="showJoinPwd ? 'text' : 'password'" class="input" placeholder="请设定密码">
+            <button type="button" class="pwd-toggle" @click="showJoinPwd = !showJoinPwd" tabindex="-1">
+              {{ showJoinPwd ? '🙈' : '👁️' }}
+            </button>
+          </div>
         </div>
 
         <div class="modal-actions">
@@ -247,6 +262,9 @@ const lookupLoading = ref(false)
 const lookupError = ref('')
 const loginLoading = ref(false)
 const loginError = ref('')
+const showLoginPwd = ref(false)
+const showCreatePwd = ref(false)
+const showJoinPwd = ref(false)
 const createLoading = ref(false)
 const createError = ref('')
 const joinLoading = ref(false)
@@ -299,8 +317,9 @@ const selectRecentFamily = async (f) => {
     if (res.success) {
       currentFamily.value = res.family
       members.value = res.members
-      if (f.memberId) {
-        const m = res.members.find(mem => mem.id === f.memberId)
+      // 按昵称预选上次登录的成员（lookup 公开接口不返回成员 id）
+      if (f.memberName) {
+        const m = res.members.find(mem => mem.name === f.memberName)
         if (m) selectedMember.value = m
       }
       step.value = 2
@@ -367,9 +386,10 @@ const doLogin = async () => {
   loginLoading.value = true
   loginError.value = ''
   try {
-    const success = await authStore.loginWithMemberId(
-      selectedMember.value.id,
-      passwordInput.value
+    const success = await authStore.loginWithFamilyCode(
+      currentFamily.value.code,
+      selectedMember.value.name,
+      passwordInput.value.trim()
     )
     if (success) {
       router.push('/')
@@ -377,7 +397,14 @@ const doLogin = async () => {
       loginError.value = '密码错误，请重试'
     }
   } catch (e) {
-    loginError.value = '登录失败，请重试'
+    const status = e?.response?.status
+    if (status === 401) {
+      loginError.value = '密码错误，请重试'
+    } else if (status === 429) {
+      loginError.value = e?.response?.data?.error || '尝试过于频繁，请稍后再试'
+    } else {
+      loginError.value = e?.response?.data?.error || '登录失败，请重试'
+    }
   } finally {
     loginLoading.value = false
   }
@@ -401,7 +428,7 @@ const doCreate = async () => {
       createForm.value.familyName,
       memberName,
       identity.role,
-      createForm.value.password
+      createForm.value.password.trim()
     )
     if (success) {
       const code = authStore.family?.code || authStore.family?.family_code
@@ -438,7 +465,7 @@ const doJoin = async () => {
       currentFamily.value.name,
       memberName,
       identity.role,
-      joinForm.value.password
+      joinForm.value.password.trim()
     )
     if (success) {
       authStore.saveRecentFamily(authStore.family, authStore.member)
@@ -835,4 +862,31 @@ onMounted(() => {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+.pwd-wrap {
+  position: relative;
+}
+
+.pwd-wrap .input {
+  padding-right: 44px;
+}
+
+.pwd-toggle {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px;
+  opacity: 0.6;
+}
+
+.pwd-toggle:hover {
+  opacity: 1;
+}
+
 </style>

@@ -129,15 +129,16 @@ export const useAuthStore = defineStore('auth', () => {
     return res
   }
 
-  async function loginWithMemberId(memberId, password) {
-    const res = await api.post('/family/login-by-id', { memberId, password })
+  // 家庭码 + 成员昵称 + 密码 登录（不依赖成员 id，公开查询接口无需暴露标识）
+  async function loginWithFamilyCode(familyCode, memberName, password) {
+    const res = await api.post('/family/login', { familyCode, memberName, password })
     if (res.success) {
       member.value = res.member
       family.value = normalizeFamily(res.family)
       localStorage.setItem('token', res.token)
       localStorage.setItem('member', JSON.stringify(res.member))
-      localStorage.setItem('family', JSON.stringify(res.family))
-      saveRecentFamily(res.family, res.member)
+      localStorage.setItem('family', JSON.stringify(family.value))
+      saveRecentFamily(family.value, res.member)
       return true
     }
     return false
@@ -158,6 +159,6 @@ export const useAuthStore = defineStore('auth', () => {
     saveRecentFamily,
     removeRecentFamily,
     lookupFamily,
-    loginWithMemberId
+    loginWithFamilyCode
   }
 })
