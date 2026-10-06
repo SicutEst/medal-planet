@@ -204,9 +204,12 @@ export async function initDatabase() {
       ALTER TABLE members ADD COLUMN IF NOT EXISTS gacha_pity_counter INT DEFAULT 0;
     `);
 
-    // 为 members 表添加头像字段
+    // 为 members 表添加头像字段；扩容至 100 以容纳头像 id（旧值是 emoji 字符，前端继续兼容展示）
     await client.query(`
-      ALTER TABLE members ADD COLUMN IF NOT EXISTS avatar VARCHAR(10) DEFAULT NULL;
+      ALTER TABLE members ADD COLUMN IF NOT EXISTS avatar VARCHAR(100) DEFAULT NULL;
+    `);
+    await client.query(`
+      ALTER TABLE members ALTER COLUMN avatar TYPE VARCHAR(100);
     `);
 
     // 密码列扩容以容纳 scrypt 哈希（约180字符）

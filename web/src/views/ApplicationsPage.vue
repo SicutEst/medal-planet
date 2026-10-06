@@ -21,7 +21,7 @@
         <div v-for="app in pendingApps" :key="app.id" class="application-card">
           <div class="app-header">
             <div class="applicant-info">
-              <span class="avatar">{{ getAvatar(app.applicant_role, app.applicant_name, app.applicant_avatar) }}</span>
+              <Avatar :avatar="app.applicant_avatar" :name="app.applicant_name" :role="app.applicant_role" :size="32" />
               <span class="name">{{ app.applicant_name }}</span>
             </div>
             <span class="amount" :class="app.application_type">
@@ -88,6 +88,7 @@
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import api from '../api'
+import Avatar from '../components/Avatar.vue'
 
 const authStore = useAuthStore()
 const pendingApps = ref([])
@@ -114,16 +115,6 @@ const loadPending = async () => {
   } finally {
     loading.value = false
   }
-}
-
-const getAvatar = (role, name, avatar) => {
-  if (avatar) return avatar
-  if (role === 'parent') {
-    if (name?.includes('妈') || name?.includes('母')) return '👩'
-    return '👨'
-  }
-  if (name?.includes('妹') || name?.includes('姐') || name?.includes('女')) return '👧'
-  return '👦'
 }
 
 const loadHistory = async () => {
@@ -188,10 +179,6 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.avatar {
-  font-size: 24px;
 }
 
 .name {

@@ -188,6 +188,16 @@ let taskId, badTaskId, quotaTaskId;
   check('新密码可登录（旧密码已透明迁移哈希）', relogin.status === 200);
   const leak = await api('GET', `/member/${childId}`, { token: childToken });
   check('成员信息不含密码字段', leak.data?.success === true && !('password' in leak.data.member));
+
+  // 头像：存头像池 id（长于旧 VARCHAR(10)，验证列已扩容），超长拒绝
+  const setAvatar = await api('PUT', `/member/${childId}`, { token: childToken, body: { avatar: 'woman_scientist' } });
+  check('设置头像 id 成功', setAvatar.data?.success === true && setAvatar.data.member?.avatar === 'woman_scientist');
+  const readBack = await api('GET', `/member/${childId}`, { token: childToken });
+  check('头像 id 读取回显', readBack.data?.member?.avatar === 'woman_scientist');
+  const tooLong = await api('PUT', `/member/${childId}`, { token: childToken, body: { avatar: 'x'.repeat(101) } });
+  check('超长头像被拒 400', tooLong.status === 400);
+  const badType = await api('PUT', `/member/${childId}`, { token: childToken, body: { avatar: 123 } });
+  check('非字符串头像被拒 400', badType.status === 400);
 }
 
 // ---- 奖励与兑换 ----

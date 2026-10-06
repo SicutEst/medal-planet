@@ -15,11 +15,9 @@ const authLimiter = rateLimit({
 });
 const lookupLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, keyFn: req => req.ip });
 
-function defaultAvatar(role, name) {
-  if (role === 'parent') {
-    return (name.includes('妈') || name.includes('母')) ? '👩' : '👨';
-  }
-  return (name.includes('妹') || name.includes('姐') || name.includes('女')) ? '👧' : '👦';
+// 头像改为前端头像池（Fluent 3D）后不再预置；未选择时前端按称呼猜 emoji 兜底
+function defaultAvatar() {
+  return null;
 }
 
 // 输出成员信息前剥离密码等敏感字段（不依赖 SQL RETURNING 的列过滤）

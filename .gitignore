@@ -6,3 +6,10 @@ server/data/
 .DS_Store
 Thumbs.db
 .tmp-test/
+
+# 头像全集浏览池（60MB 临时数据，正式头像池另行精选到 src/assets）
+web/public/icons-all/
+web/public/avatar-names.txt
+web/public/avatar-names.json
+web/public/avatar-preview.html
+web/public/avatar-gallery.html

@@ -7,7 +7,7 @@
         <p style="font-size: 14px; opacity: 0.9;">{{ authStore.family?.name || '' }} · {{ authStore.member?.name }}</p>
       </div>
       <div class="role-badge" :class="authStore.isParent ? 'parent' : 'child'">
-        {{ authStore.member?.avatar || (authStore.isParent ? '👨‍👩‍👧' : '👦') }}
+        <Avatar :avatar="authStore.member?.avatar" :name="authStore.member?.name" :role="authStore.member?.role" :size="34" />
       </div>
     </div>
 
@@ -218,6 +218,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { localDateStr } from '../utils/date'
 import { themeCurrencies } from '../utils/theme'
+import Avatar from '../components/Avatar.vue'
 import api from '../api'
 
 const authStore = useAuthStore()
@@ -435,7 +436,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  overflow: hidden;
 }
 
 .role-badge.parent {

@@ -23,15 +23,23 @@
       <h3>🧑‍🎨 我的头像</h3>
       <div class="avatar-section">
         <div class="current-avatar" @click="showAvatarPicker = !showAvatarPicker">
-          <span class="avatar-emoji">{{ getMemberAvatar(authStore.member) }}</span>
+          <Avatar :avatar="authStore.member?.avatar" :name="authStore.member?.name" :role="authStore.member?.role" :size="56" />
           <span class="change-hint">点击更换</span>
         </div>
         <div v-if="showAvatarPicker" class="avatar-picker">
-          <div v-for="avatar in avatarOptions" :key="avatar" 
-               class="avatar-option" 
-               :class="{ selected: avatar === authStore.member?.avatar }"
-               @click="selectAvatar(avatar)">
-            {{ avatar }}
+          <div class="ap-tabs">
+            <button v-for="c in avatarCategories" :key="c.id" class="ap-tab"
+                    :class="{ active: avatarTab === c.id }" @click="avatarTab = c.id">
+              {{ c.name }}
+            </button>
+          </div>
+          <input v-model.trim="avatarSearch" class="input ap-search" placeholder="搜索（英文名，可留空）">
+          <div class="ap-grid">
+            <button v-for="id in filteredAvatars" :key="id" class="ap-cell"
+                    :class="{ selected: id === authStore.member?.avatar }"
+                    @click="selectAvatar(id)">
+              <img :src="avatarSrc(id)" alt="" loading="lazy" draggable="false">
+            </button>
           </div>
         </div>
       </div>
@@ -66,7 +74,7 @@
       <div v-if="members.length > 0">
         <div v-for="member in members" :key="member.id" class="member-item">
           <div class="member-info">
-            <span class="member-avatar">{{ getMemberAvatar(member) }}</span>
+            <Avatar :avatar="member.avatar" :name="member.name" :role="member.role" :size="40" />
             <div>
               <div class="member-name">{{ member.name }}</div>
               <div class="member-role">{{ member.role === 'parent' ? '家长' : '孩子' }}</div>
@@ -162,6 +170,8 @@ import { useAuthStore } from '../stores/auth'
 import api from '../api'
 import QRCode from 'qrcode'
 import { THEMES, currentTheme, applyTheme } from '../utils/theme'
+import Avatar from '../components/Avatar.vue'
+import { AVATAR_CATEGORIES, avatarSrc } from '../utils/avatars'
 
 const authStore = useAuthStore()
 
@@ -215,23 +225,15 @@ const loadMembers = async () => {
   }
 }
 
-const getMemberAvatar = (member) => {
-  if (member.avatar) return member.avatar
-  if (member.role === 'parent') {
-    if (member.name.includes('妈') || member.name.includes('母')) return '👩'
-    return '👨'
-  }
-  if (member.name.includes('妹') || member.name.includes('姐') || member.name.includes('女')) return '👧'
-  return '👦'
-}
-
-const avatarOptions = [
-  '👨', '👩', '👦', '👧', '👴', '👵', '👱', '👲', '🧑',
-  '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷',
-  '🦄', '🐴', '🐸', '🐵', '🐔', '🐧', '🐦', '🦉', '🦅',
-  '🐢', '🐙', '🦋', '🐝', '🐞', '🦀', '🐳', '🐬', '🦈',
-  '🌟', '🌙', '☀️', '🌈', '⭐', '🔥', '💎', '🎀', '🎈', '🎁', '🎯', '🎮'
-]
+const avatarCategories = AVATAR_CATEGORIES
+const avatarTab = ref('person')
+const avatarSearch = ref('')
+const filteredAvatars = computed(() => {
+  const kw = avatarSearch.value.toLowerCase()
+  // 搜索时跨全部分类找，否则只看当前页签
+  const items = kw ? avatarCategories.flatMap(c => c.items) : avatarCategories.find(c => c.id === avatarTab.value).items
+  return items.filter(id => id.includes(kw))
+})
 
 const showAvatarPicker = ref(false)
 
@@ -457,10 +459,6 @@ onMounted(() => {
   gap: 12px;
 }
 
-.member-avatar {
-  font-size: 32px;
-}
-
 .member-name {
   font-weight: 600;
 }
@@ -565,11 +563,6 @@ onMounted(() => {
   transform: scale(1.05);
 }
 
-.avatar-emoji {
-  font-size: 56px;
-  line-height: 1;
-}
-
 .change-hint {
   font-size: 12px;
   color: var(--text-light);
@@ -577,38 +570,76 @@ onMounted(() => {
 
 .avatar-picker {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-direction: column;
+  gap: 12px;
   margin-top: 16px;
-  padding: 12px;
+  padding: 14px;
   background: var(--bg);
   border-radius: var(--radius-card);
-  max-height: 280px;
-  overflow-y: auto;
 }
 
-.avatar-option {
-  width: 44px;
-  height: 44px;
+.ap-tabs {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  background: white;
-  border: 2px solid transparent;
-  border-radius: var(--radius);
+  gap: 8px;
+}
+
+.ap-tab {
+  flex: 1;
+  padding: 8px 0;
+  border: none;
+  background: var(--card-bg);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--text-light);
   cursor: pointer;
   transition: all 0.2s;
 }
 
-.avatar-option:hover {
-  border-color: var(--primary);
-  transform: scale(1.1);
+.ap-tab.active {
+  background: var(--primary);
+  color: white;
+  font-weight: 600;
 }
 
-.avatar-option.selected {
+.ap-search {
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.ap-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.ap-cell {
+  aspect-ratio: 1;
+  padding: 4px;
+  background: var(--card-bg);
+  border: 2px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ap-cell img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.ap-cell:hover {
   border-color: var(--primary);
-  background: rgba(255, 105, 180, 0.1);
+  transform: scale(1.08);
+}
+
+.ap-cell.selected {
+  border-color: var(--primary);
+  background: var(--primary-light, rgba(255, 105, 180, 0.12));
 }
 .theme-tip {
   font-size: 13px;

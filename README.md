@@ -12,6 +12,7 @@
 - 🎁 奖励商店：家长维护奖励池（库存/档位/图标），孩子用粉球兑换，家长确认领取
 - 🔮 粉球抽卡：单抽 10 球 / 十连 100 球，90 抽保底五星，抽到的奖励进入宠物收藏
 - 📊 数据统计：打卡热力图、月度报告、月度趋势
+- 🐼 自选头像：内置 312 枚 Fluent Emoji 3D 立体头像（人物/动物/食物/自然与物品四类，支持搜索），各成员独立更换
 - 📱 移动端优先的 H5，手机电脑都能用
 
 ## 快速启动
@@ -75,6 +76,8 @@ node scripts/reconcile.js
 ## 开源协议
 
 [MIT](LICENSE)
+
+头像素材来自微软 [Fluent Emoji](https://github.com/microsoft/fluentui-emoji)（MIT 许可），见 `web/public/avatars/NOTICE.md`。
 
 ## 项目结构
 

@@ -67,6 +67,11 @@ router.put('/:id', requireAuth, async (req, res) => {
       return res.status(400).json({ success: false, error: '昵称需为 1-50 个字符' });
     }
 
+    // 头像存头像池 id 或旧版 emoji 字符，超长一律拒绝
+    if (avatar !== undefined && avatar !== null && (typeof avatar !== 'string' || avatar.length > 100)) {
+      return res.status(400).json({ success: false, error: '头像格式不正确' });
+    }
+
     const result = await pool.query(
       `UPDATE members SET
         name = COALESCE($1, name),
