@@ -8,42 +8,48 @@ export const THEMES = [
     name: '奶油星球',
     desc: '薄荷青 · 温柔百搭',
     colors: ['#2FB8AC', '#FFD166', '#FAF6EE'],
-    cur: ['🎟️', '🔮']
+    cur: ['🎟️', '🔮'],
+    nav: ['🏠', '📋', '📝', '🎁', '⚙️']
   },
   {
     id: 'minecraft',
     name: '像素方块',
     desc: '草地绿 · 方块与硬阴影',
     colors: ['#5B8731', '#8B5A2B', '#EFEAC8'],
-    cur: ['💎', '⭐']
+    cur: ['💎', '⭐'],
+    nav: ['🛖', '🧱', '📜', '💎', '⚙️']
   },
   {
     id: 'duo',
     name: '活力闯关',
     desc: '羽毛绿 · 立体大按钮',
     colors: ['#58CC02', '#1CB0F6', '#F4FBF4'],
-    cur: ['⚡', '💎']
+    cur: ['⚡', '💎'],
+    nav: ['🏠', '📚', '✅', '🏆', '⚙️']
   },
   {
     id: 'eggy',
     name: '圆滚滚',
     desc: '泡泡糖粉 · 圆角与弹跳',
     colors: ['#FF7EB0', '#FFE066', '#FFF7F0'],
-    cur: ['🍬', '🥚']
+    cur: ['🍬', '🥚'],
+    nav: ['🏠', '🎯', '📮', '🍭', '⚙️']
   },
   {
     id: 'mario',
     name: '冒险红蓝',
     desc: '经典红 · 星星与金币',
     colors: ['#E52521', '#FBD000', '#FFF8E7'],
-    cur: ['⭐', '🪙']
+    cur: ['⭐', '🪙'],
+    nav: ['🏰', '🍄', '⭐', '🪙', '🔧']
   },
   {
     id: 'sonic',
     name: '电光蓝环',
     desc: '电光蓝 · 速度线条',
     colors: ['#0F6FFF', '#FFD100', '#F0F6FF'],
-    cur: ['💫', '💍']
+    cur: ['💫', '💍'],
+    nav: ['🌀', '🏁', '⚡', '💍', '⚙️']
   },
   {
     id: 'space',
@@ -51,6 +57,7 @@ export const THEMES = [
     desc: '深空蓝 · 星星点点（夜间）',
     colors: ['#6C8CFF', '#FFD166', '#1A2140'],
     cur: ['⭐', '🪐'],
+    nav: ['🚀', '🛰️', '🌟', '🪐', '⚙️'],
     dark: true
   },
   {
@@ -58,14 +65,16 @@ export const THEMES = [
     name: '花园物语',
     desc: '草木绿 · 花瓣与果实',
     colors: ['#5CA052', '#D97742', '#F5F7EE'],
-    cur: ['🌸', '🍎']
+    cur: ['🌸', '🍎'],
+    nav: ['🏡', '🌱', '🌸', '🍎', '🌿']
   },
   {
     id: 'macaron',
     name: '甜心马卡龙',
     desc: '藕粉紫 · 闪闪少女心',
     colors: ['#F49FB6', '#B28DD9', '#FEF5F7'],
-    cur: ['💗', '✨']
+    cur: ['💗', '✨'],
+    nav: ['🧁', '🍓', '💗', '🍦', '✨']
   }
 ]
 
@@ -100,4 +109,11 @@ export function loadThemeFor(memberId) {
 export function themeCurrencies() {
   const t = THEMES.find(t => t.id === currentTheme.value)
   return t ? t.cur : ['🎟️', '🔮']
+}
+
+// 当前主题的底部导航图标 [首页, 任务, 审批, 商店, 设置]
+export const DEFAULT_NAV = ['🏠', '📋', '📝', '🎁', '⚙️']
+export function themeNav() {
+  const t = THEMES.find(t => t.id === currentTheme.value)
+  return t?.nav || DEFAULT_NAV
 }

@@ -29,7 +29,7 @@
               </span>
             </div>
           </div>
-          <div class="reward">+{{ task.sticker_reward }} 🎟️</div>
+          <div class="reward">+{{ task.sticker_reward }} {{ cur[0] }}</div>
         </div>
       </div>
     </div>
@@ -49,7 +49,7 @@
               <span class="tag tag-warn">每次扣{{ task.sticker_reward }}贴纸</span>
             </div>
           </div>
-          <div class="reward penalty">-{{ task.sticker_reward }} 🎟️</div>
+          <div class="reward penalty">-{{ task.sticker_reward }} {{ cur[0] }}</div>
         </div>
       </div>
     </div>
@@ -70,7 +70,7 @@
               </span>
             </div>
           </div>
-          <div class="reward">+{{ task.sticker_reward }} 🎟️</div>
+          <div class="reward">+{{ task.sticker_reward }} {{ cur[0] }}</div>
         </div>
       </div>
     </div>
@@ -80,11 +80,13 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
+import { themeCurrencies } from '../utils/theme'
 import api from '../api'
 
 const authStore = useAuthStore()
 const tasks = ref([])
 const filter = ref('all')
+const cur = computed(() => themeCurrencies())
 
 const habitTasks = computed(() => tasks.value.filter(t => t.category === 'habit'))
 // 坏习惯由家长记录：孩子端不展示

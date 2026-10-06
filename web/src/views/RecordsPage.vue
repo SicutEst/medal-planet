@@ -7,7 +7,7 @@
     <!-- 统计卡片 -->
     <div class="stats-grid">
       <div class="stat-card">
-        <div class="stat-icon">🎟️</div>
+        <div class="stat-icon">{{ cur[0] }}</div>
         <div class="stat-value">{{ authStore.member?.current_stickers || 0 }}</div>
         <div class="stat-label">当前贴纸</div>
       </div>
@@ -17,7 +17,7 @@
         <div class="stat-label">累计获得</div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon">🔮</div>
+        <div class="stat-icon">{{ cur[1] }}</div>
         <div class="stat-value">{{ authStore.member?.current_balls || 0 }}</div>
         <div class="stat-label">粉球</div>
       </div>
@@ -86,7 +86,7 @@
       <div v-if="monthlyReport">
         <!-- 贴纸收支 -->
         <div class="report-section">
-          <h4>🎟️ 贴纸收支</h4>
+          <h4>{{ cur[0] }} 贴纸收支</h4>
           <div class="report-grid">
             <div class="report-item positive">
               <div class="report-label">获得</div>
@@ -109,7 +109,7 @@
 
         <!-- 粉球 -->
         <div class="report-section">
-          <h4>🔮 粉球</h4>
+          <h4>{{ cur[1] }} 粉球</h4>
           <div class="report-grid">
             <div class="report-item positive">
               <div class="report-label">转换</div>
@@ -265,9 +265,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
+import { themeCurrencies } from '../utils/theme'
 import api from '../api'
 
 const authStore = useAuthStore()
+const cur = computed(() => themeCurrencies())
 const logs = ref([])
 const taskStats = ref([])
 

@@ -7,7 +7,7 @@
     <!-- 家庭信息 -->
     <div class="card">
       <div class="family-info">
-        <div class="family-avatar">👨‍👩‍👧‍👦</div>
+        <img class="family-avatar" src="/avatars/ringed_planet.png" alt="家庭">
         <div class="family-details">
           <div class="family-name">{{ family?.name }}</div>
           <div class="family-code">家庭码: <strong>{{ family?.family_code }}</strong></div>
@@ -81,8 +81,8 @@
             </div>
           </div>
           <div class="member-stats">
-            <span>🎟️ {{ member.current_stickers }}</span>
-            <span>🔮 {{ member.current_balls }}</span>
+            <span>{{ cur[0] }} {{ member.current_stickers }}</span>
+            <span>{{ cur[1] }} {{ member.current_balls }}</span>
           </div>
         </div>
       </div>
@@ -169,11 +169,13 @@ import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import api from '../api'
 import QRCode from 'qrcode'
-import { THEMES, currentTheme, applyTheme } from '../utils/theme'
+import { THEMES, currentTheme, applyTheme, themeCurrencies } from '../utils/theme'
 import Avatar from '../components/Avatar.vue'
 import { AVATAR_CATEGORIES, avatarSrc } from '../utils/avatars'
 
 const authStore = useAuthStore()
+
+const cur = computed(() => themeCurrencies())
 
 // 主题
 const themes = THEMES
@@ -368,7 +370,11 @@ onMounted(() => {
 }
 
 .family-avatar {
-  font-size: 48px;
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  border-radius: 26%;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
 }
 
 .invite-card {

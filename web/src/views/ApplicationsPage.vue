@@ -71,7 +71,7 @@
           </div>
           <div class="history-content">
             <span class="amount" :class="app.application_type">
-              {{ app.application_type === 'penalty' ? '-' : '+' }}{{ app.requested_stickers }} 🎟️
+              {{ app.application_type === 'penalty' ? '-' : '+' }}{{ app.requested_stickers }} {{ cur[0] }}
             </span>
             <span class="task-name" v-if="app.task_name">→ {{ app.task_name }}</span>
           </div>
@@ -85,12 +85,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
+import { themeCurrencies } from '../utils/theme'
 import api from '../api'
 import Avatar from '../components/Avatar.vue'
 
 const authStore = useAuthStore()
+const cur = computed(() => themeCurrencies())
 const pendingApps = ref([])
 const historyApps = ref([])
 const loading = ref(false)
