@@ -527,9 +527,10 @@ onMounted(() => {
 
 .period-select {
   padding: 6px 10px;
-  border: 1px solid #E0E0E0;
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  background: white;
+  background: var(--card-bg);
+  color: var(--text);
   font-size: 13px;
 }
 

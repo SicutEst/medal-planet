@@ -205,17 +205,5 @@ onMounted(() => {
   background: #FFF8F8 !important;
 }
 
-.reward {
-  background: var(--primary-light);
-  color: var(--primary-dark);
-  padding: 6px 14px;
-  border-radius: 20px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.reward.penalty {
-  background: #FFEBEE;
-  color: #E53935;
-}
+/* 奖励徽章样式统一走 main.css 的 .task-item .reward（含夜间模式亮色适配） */
 </style>

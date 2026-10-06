@@ -489,7 +489,7 @@ onMounted(() => {
 
 .balance-item .progress-tip {
   font-size: 11px;
-  color: #8A7C5E;
+  color: var(--text-light);
   margin-top: 4px;
 }
 

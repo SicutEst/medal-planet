@@ -693,7 +693,7 @@ html[data-theme='space'] {
   --bg: #1A2140;
   --card-bg: #242D52;
   --text: #E8ECF8;
-  --text-light: #97A0BF;
+  --text-light: #BFC9E6;
   --line: #33406E;
   --shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
 }
@@ -718,6 +718,17 @@ html[data-theme='space'] .input {
 html[data-theme='space'] .task-item.completed {
   background: var(--primary-light);
 }
+
+/* 夜间模式下，浅色系徽章/标签的底色是深色，文字必须换成亮色以保证对比度 */
+html[data-theme='space'] .tag-gold,
+html[data-theme='space'] .tag-warn { color: #FFD98A; }
+html[data-theme='space'] .tag-sky { color: #9CCBFF; }
+html[data-theme='space'] .tag-purple { color: #C5B8FF; }
+html[data-theme='space'] .tag-green { color: #93E2AC; }
+html[data-theme='space'] .tag-red { color: #FFA899; }
+html[data-theme='space'] .tag-orange { color: #FFC59E; }
+html[data-theme='space'] .task-item .reward { color: #FFD98A; }
+html[data-theme='space'] .task-item .reward.penalty { color: #FFA899; }
 
 /* ---------- 花园物语 ---------- */
 html[data-theme='garden'] {
