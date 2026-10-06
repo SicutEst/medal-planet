@@ -77,23 +77,15 @@
               >－</span>
               <span
                 class="tag tag-gold"
-                :title="'目标 ' + task.target_count + ' 次：每完成一次点一下整行计数；点「提交」后按次数 × 单次奖励等待审批'"
+                :title="'目标 ' + task.target_count + ' 次：每完成一次点一下整行计数；点底部「提交今日完成」后按次数 × 单次奖励等待审批'"
               >
                 {{ task.count_today || 0 }}/{{ task.target_count }}
               </span>
             </template>
             <span v-if="(task.pending_count || 0) > 0" class="tag-sky">待审 {{ task.pending_count }}</span>
           </div>
-          <div class="task-actions">
-            <button
-              v-if="task.category !== 'bad_habit' && zOf(task) > 0"
-              class="submit-mini"
-              :title="'提交 ' + zOf(task) + ' 次完成，等待家长审批'"
-              @click.stop="submitTask(task)"
-            >提交 {{ zOf(task) }}</button>
-            <div class="reward" :class="{ penalty: task.category === 'bad_habit' }">
-              {{ task.category === 'bad_habit' ? '-' : '+' }}{{ task.sticker_reward }} 🎟️
-            </div>
+          <div class="reward" :class="{ penalty: task.category === 'bad_habit' }">
+            {{ task.category === 'bad_habit' ? '-' : '+' }}{{ task.sticker_reward }} 🎟️
           </div>
         </div>
 
@@ -104,7 +96,7 @@
           @click="submitDailyTasks"
           :disabled="submitting"
         >
-          {{ submitting ? '提交中...' : '📤 一键提交全部' }}
+          {{ submitting ? '提交中...' : '📤 提交今日完成（共 ' + totalSubmittable + ' 次）' }}
         </button>
 
         <div v-if="allSubmitted" class="submit-success">
@@ -312,6 +304,13 @@ const hasCompletedTask = computed(() => {
   return todayTasks.value.some(t => t.category !== 'bad_habit' && zOf(t) > 0)
 })
 
+// 底部按钮显示的总可提交次数
+const totalSubmittable = computed(() => {
+  return todayTasks.value
+    .filter(t => t.category !== 'bad_habit')
+    .reduce((sum, t) => sum + zOf(t), 0)
+})
+
 const allSubmitted = computed(() => {
   if (loading.value) return false
   const normal = todayTasks.value.filter(t => t.category !== 'bad_habit')
@@ -362,17 +361,6 @@ const decrementTask = async (task) => {
     await loadTodayTasks()
   } catch (e) {
     alert(e?.response?.data?.error || '操作失败')
-  }
-}
-
-// 提交单个任务的全部未提交完成量（按次计件：剩余量由服务端权威计算，防重复发奖）
-const submitTask = async (task) => {
-  try {
-    await api.post(`/task/${task.id}/submit`)
-    await loadTodayTasks()
-    await loadPendingApps()
-  } catch (e) {
-    alert(e?.response?.data?.error || '提交失败')
   }
 }
 
@@ -788,27 +776,6 @@ onMounted(() => {
 .count-minus:hover {
   background: #FFCDD2;
 }
-
-.task-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.submit-mini {
-  border: none;
-  background: var(--primary);
-  color: white;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 6px 12px;
-  border-radius: 14px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.submit-mini:hover { opacity: 0.85; }
 
 .tag-sky {
   background: #E3F2FD;
