@@ -404,22 +404,26 @@ router.post('/:id/complete', async (req, res) => {
           );
         }
       } else {
-        // 普通任务：每天一次
+        // 普通任务：每天一次；取消后残留的 count=0 行视为未完成，可重新打卡
         const existing = await client.query(
-          'SELECT id FROM task_completions WHERE task_id = $1 AND member_id = $2 AND completed_date = $3',
+          'SELECT id, count_today FROM task_completions WHERE task_id = $1 AND member_id = $2 AND completed_date = $3',
           [id, memberId, targetDate]
         );
 
-        if (existing.rows.length > 0) {
+        if (existing.rows.length > 0 && (Number(existing.rows[0].count_today) || 0) > 0) {
           await client.query('ROLLBACK');
           return res.status(400).json({ success: false, error: '今日已完成该任务' });
         }
 
         countToday = 1;
-        await client.query(
-          'INSERT INTO task_completions (task_id, member_id, completed_date, count_today, is_subsidy, subsidy_date) VALUES ($1, $2, $3, 1, $4, $5)',
-          [id, memberId, targetDate, isSubsidy, subsidyDate]
-        );
+        if (existing.rows.length > 0) {
+          await client.query('UPDATE task_completions SET count_today = 1 WHERE id = $1', [existing.rows[0].id]);
+        } else {
+          await client.query(
+            'INSERT INTO task_completions (task_id, member_id, completed_date, count_today, is_subsidy, subsidy_date) VALUES ($1, $2, $3, 1, $4, $5)',
+            [id, memberId, targetDate, isSubsidy, subsidyDate]
+          );
+        }
       }
 
       // 贴纸发放语义（按次计件）：打卡只累计完成量，贴纸经「提交 → 家长审批」按
@@ -574,8 +578,16 @@ router.post('/:id/uncomplete', async (req, res) => {
     }
 
     if (count === 1) {
-      // 多计数任务：递减一次（不会减到已提交/已批的量）
+      // 多计数任务：递减一次（不会减到已提交/已批的量）；减到 0 且无记账量时删除记录
       const newCount = doneCount - 1;
+      if (newCount <= 0 && accounted === 0) {
+        await pool.query(
+          `DELETE FROM task_completions
+           WHERE task_id = $1 AND member_id = $2 AND completed_date = $3 AND is_subsidy = false`,
+          [id, memberId, targetDate]
+        );
+        return res.json({ success: true, message: '已取消今日打卡', countToday: 0 });
+      }
       await pool.query('UPDATE task_completions SET count_today = $1 WHERE task_id = $2 AND member_id = $3 AND completed_date = $4', [newCount, id, memberId, targetDate]);
       return res.json({ success: true, message: '已减少一次打卡', countToday: newCount });
     }

@@ -370,7 +370,20 @@ const decrementTask = async (task) => {
   }
 }
 
+// 防连点：同一任务的请求在途时忽略再次点击（否则双击会打出两次打卡，第二次报"已完成"）
+const togglingIds = ref(new Set())
+
 const toggleTask = async (task) => {
+  if (togglingIds.value.has(task.id)) return
+  togglingIds.value.add(task.id)
+  try {
+    await doToggleTask(task)
+  } finally {
+    togglingIds.value.delete(task.id)
+  }
+}
+
+const doToggleTask = async (task) => {
   const count = task.count_today || 0
 
   // 坏习惯：家长记录，一天一次，扣贴纸前确认
@@ -384,12 +397,11 @@ const toggleTask = async (task) => {
   // 已全部提交（无剩余可提交量）的任务锁定，不能再改动
   if (task.category !== 'bad_habit' && zOf(task) === 0 && count > 0) return
 
-  // 单次任务已有未提交的完成量：再点一次 = 整行取消（静默无弹窗）
+  // 单次任务已有未提交的完成量：再点一次 = 整行取消（静默无弹窗；不传 count 走服务器整条取消语义）
   if (count > 0 && zOf(task) > 0 && (task.target_count || 1) === 1) {
     try {
       await api.post(`/task/${task.id}/uncomplete`, {
-        date: localDateStr(),
-        count: zOf(task)
+        date: localDateStr()
       })
       await loadTodayTasks()
     } catch (e) {

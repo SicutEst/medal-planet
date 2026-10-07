@@ -97,6 +97,12 @@ let taskId, badTaskId, quotaTaskId;
   const unBad = await api('POST', `/task/${badTaskId}/uncomplete`, { token: childToken, body: {} });
   check('坏习惯记录不可取消 400', unBad.status === 400);
 
+  // 回归：递减语义(count:1)减到 0 后必须可重新打卡（残留 count=0 行曾致"今日已完成该任务"误报）
+  const unOne = await api('POST', `/task/${taskId}/uncomplete`, { token: childToken, body: { count: 1 } });
+  check('递减归零成功', unOne.data?.success === true && unOne.data.countToday === 0, '实际=' + JSON.stringify(unOne.data));
+  const re2 = await api('POST', `/task/${taskId}/complete`, { token: childToken, body: {} });
+  check('归零后可重新打卡', re2.data?.success === true);
+
   // 坏习惯由家长记录：孩子打卡 403
   const badByChild = await api('POST', `/task/${badTaskId}/complete`, { token: childToken, body: {} });
   check('孩子记录坏习惯被拒 403', badByChild.status === 403);
