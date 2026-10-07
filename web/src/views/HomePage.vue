@@ -69,6 +69,7 @@
               {{ task.name }}
               <span v-if="task.category === 'bad_habit'" class="tag tag-warn">坏习惯</span>
               <span v-else-if="task.category === 'temporary'" class="tag tag-todo">待办</span>
+              <span v-if="(task.pending_count || 0) > 0 && (task.target_count || 1) === 1" class="mt-pending">待审</span>
             </div>
             <div v-if="task.target_count > 1" class="mt-progress" :title="'目标 ' + task.target_count + ' 次：每完成一次点一下整行计数；底部「提交今日完成」按次数 × 单次奖励等待审批'">
               <div class="mt-bar">
@@ -323,7 +324,8 @@ const allSubmitted = computed(() => {
 
 // 任务今日是否算"完成"：完成量已全部提交（无剩余可提交）即算
 const isTaskDone = (task) => {
-  return (task.count_today || 0) > 0 && zOf(task) === 0
+  // 当日有完成量即打勾（含未提交的），提交后由"待审"标记区分
+  return (task.count_today || 0) > 0
 }
 
 const loadTodayTasks = async () => {
@@ -381,6 +383,20 @@ const toggleTask = async (task) => {
 
   // 已全部提交（无剩余可提交量）的任务锁定，不能再改动
   if (task.category !== 'bad_habit' && zOf(task) === 0 && count > 0) return
+
+  // 单次任务已有未提交的完成量：再点一次 = 整行取消（静默无弹窗）
+  if (count > 0 && zOf(task) > 0 && (task.target_count || 1) === 1) {
+    try {
+      await api.post(`/task/${task.id}/uncomplete`, {
+        date: localDateStr(),
+        count: zOf(task)
+      })
+      await loadTodayTasks()
+    } catch (e) {
+      alert(e?.response?.data?.error || '操作失败')
+    }
+    return
+  }
 
   try {
     const res = await api.post(`/task/${task.id}/complete`, {
